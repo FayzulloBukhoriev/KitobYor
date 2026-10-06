@@ -1,0 +1,105 @@
+name: kitobyor
+x-app: &app
+  build: .
+  image: kitobyor:2.0
+  environment: &app-env
+    DJANGO_DEBUG: "0"
+    DJANGO_SETTINGS_MODULE: config.settings
+    DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:?Set a unique DJANGO_SECRET_KEY}
+    DJANGO_ALLOWED_HOSTS: ${KITOBYOR_DOMAIN:?Set KITOBYOR_DOMAIN},localhost,127.0.0.1
+    CSRF_TRUSTED_ORIGINS: https://${KITOBYOR_DOMAIN}
+    TRUST_PROXY_HEADERS: "1"
+    PGHOST: db
+    PGPORT: "5432"
+    PGDATABASE: ${PGDATABASE:-kitobyor}
+    PGUSER: ${PGUSER:-kitobyor}
+    PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD}
+    SMS_BACKEND: ${SMS_BACKEND:-preview}
+    SMS_LOCK_FILE: /var/lib/kitobyor/sms.lock
+    SMS_MODEM_BAUDRATE: ${SMS_MODEM_BAUDRATE:-115200}
+    SMS_MODEM_TIMEOUT: ${SMS_MODEM_TIMEOUT:-45}
+    SECURE_HSTS_SECONDS: ${SECURE_HSTS_SECONDS:-3600}
+    HSTS_INCLUDE_SUBDOMAINS: ${HSTS_INCLUDE_SUBDOMAINS:-0}
+    HSTS_PRELOAD: ${HSTS_PRELOAD:-0}
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  tmpfs:
+    - /tmp
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${PGDATABASE:-kitobyor}
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_ADMIN_PASSWORD:?Set a separate POSTGRES_ADMIN_PASSWORD}
+      PGUSER: ${PGUSER:-kitobyor}
+      PGPASSWORD: ${PGPASSWORD:?Set PGPASSWORD}
+    volumes:
+      - database:/var/lib/postgresql/data
+      - ./deploy/init-db.sh:/docker-entrypoint-initdb.d/10-app-role.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  migrate:
+    <<: *app
+    command: ["python", "manage.py", "migrate", "--noinput"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+  web:
+    <<: *app
+    restart: unless-stopped
+    read_only: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    expose:
+      - "8000"
+  proxy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      KITOBYOR_DOMAIN: ${KITOBYOR_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL:?Set ACME_EMAIL for TLS}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+  sms:
+    <<: *app
+    profiles: ["sms"]
+    restart: unless-stopped
+    read_only: true
+    command: ["python", "manage.py", "send_sms"]
+    environment:
+      <<: *app-env
+      SMS_BACKEND: gsm
+      SMS_MODEM_PORT: /dev/ttyUSB0
+    devices:
+      - ${SMS_DEVICE:-/dev/ttyUSB0}:/dev/ttyUSB0
+    group_add:
+      - ${SMS_DEVICE_GID:-20}
+    volumes:
+      - sms_state:/var/lib/kitobyor
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      disable: true
+volumes:
+  database:
+  caddy_data:
+  caddy_config:
+  sms_state:

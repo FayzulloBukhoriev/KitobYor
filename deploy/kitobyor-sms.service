@@ -1,0 +1,23 @@
+[Unit]
+Description=KitobYor GSM SMS worker
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=kitobyor
+Group=kitobyor
+SupplementaryGroups=dialout
+WorkingDirectory=/opt/kitobyor
+Environment=DJANGO_SETTINGS_MODULE=config.settings
+Environment=SMS_LOCK_FILE=/var/lib/kitobyor/sms.lock
+ExecStart=/opt/kitobyor/.venv/bin/python manage.py send_sms
+Restart=on-failure
+RestartSec=10
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kitobyor
+
+[Install]
+WantedBy=multi-user.target

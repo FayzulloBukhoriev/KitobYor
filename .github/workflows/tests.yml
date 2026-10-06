@@ -30,3 +30,10 @@ jobs:
       - run: python manage.py check
       - run: python manage.py makemigrations --check --dry-run
       - run: python manage.py test
+      - run: python manage.py collectstatic --noinput
+      - name: Build production image
+        run: docker build -t kitobyor:ci .
+      - name: Validate Compose configuration
+        run: |
+          cp .env.example .env
+          docker compose config --quiet

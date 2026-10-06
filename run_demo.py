@@ -9,12 +9,12 @@ import venv
 
 ROOT=Path(__file__).resolve().parent
 
-def main():
+def main(argv=None):
     parser=argparse.ArgumentParser(description='KitobYor local preview, no Docker required.')
     parser.add_argument('--postgres',action='store_true',help='Use PostgreSQL configured in .env instead of local SQLite preview.')
     parser.add_argument('--setup-only',action='store_true',help='Prepare database and demo without starting server.')
     parser.add_argument('--port',type=int,default=8000)
-    opts=parser.parse_args()
+    opts=parser.parse_args(argv)
     if sys.version_info<(3,11):raise SystemExit('Python 3.11+ required. Recommended: Python 3.12.')
     os.chdir(ROOT)
     env_dir=ROOT/'.venv';python=env_dir/('Scripts/python.exe' if os.name=='nt' else 'bin/python')

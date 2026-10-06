@@ -13,3 +13,7 @@ media/
 
 local_data/
 *.key
+
+backups/
+*.dump
+*.part
