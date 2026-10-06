@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" fill="none">
+  <defs>
+    <linearGradient id="silk" x1="55" y1="0" x2="710" y2="0" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#000" stop-opacity=".18"/><stop offset=".18" stop-color="#fff" stop-opacity=".32"/>
+      <stop offset=".39" stop-color="#000" stop-opacity=".16"/><stop offset=".63" stop-color="#fff" stop-opacity=".38"/>
+      <stop offset=".82" stop-color="#000" stop-opacity=".12"/><stop offset="1" stop-color="#fff" stop-opacity=".15"/>
+    </linearGradient>
+    <path id="flag" d="M56 49C169 17 225 78 336 53S556 7 704 52V346C556 301 445 366 336 347S169 311 56 343Z"/>
+    <clipPath id="edge"><use href="#flag"/></clipPath>
+    <path id="star" d="M0-7 2-2.3 7-2.2 3 1 4.4 6 0 3-4.4 6-3 1-7-2.2-2-2.3Z"/>
+  </defs>
+  <g clip-path="url(#edge)">
+    <use href="#flag" fill="#fffdf8"/>
+    <path d="M56 49C169 17 225 78 336 53S556 7 704 52V136C556 91 445 156 336 137S169 101 56 133Z" fill="#c92335"/>
+    <path d="M56 259C169 227 225 288 336 263S556 217 704 262V346C556 301 445 366 336 347S169 311 56 343Z" fill="#087f43"/>
+    <g fill="#d6aa32" transform="translate(362 200) rotate(-3)">
+      <use href="#star" x="-60" y="-17"/><use href="#star" x="-44" y="-37"/>
+      <use href="#star" x="-23" y="-49"/><use href="#star" y="-53"/>
+      <use href="#star" x="23" y="-49"/><use href="#star" x="44" y="-37"/><use href="#star" x="60" y="-17"/>
+      <path d="M-34 22-41-3Q-29-11-20 7Q-12-9 0-16Q12-9 20 7Q29-11 41-3L34 22ZM-31 28H31V34H-31Z"/>
+      <circle cy="-20" r="4"/>
+      <path d="M-33 44Q-16 35 0 42Q16 35 33 44" stroke="#d6aa32" stroke-width="3" stroke-linecap="round"/>
+    </g>
+    <use href="#flag" fill="url(#silk)"/>
+  </g>
+  <use href="#flag" stroke="#294954" stroke-opacity=".09" stroke-width="1.5"/>
+</svg>

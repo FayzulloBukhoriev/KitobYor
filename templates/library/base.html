@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{{ title }} · KitobYor</title>
 <link rel="stylesheet" href="{% static 'app.css' %}">
+<link rel="stylesheet" href="{% static 'css/topbar.css' %}?v=1.0.1">
 <script defer src="{% static 'app.js' %}">
 </script>
 </head>
@@ -40,22 +41,24 @@
 </div>
 </aside>
 <div class="app-shell">
-<header class="topbar">
+<header class="topbar topbar-tj">
+<img class="topbar-flag" src="{% static 'images/tajikistan-waving.svg' %}" alt="" aria-hidden="true">
 <div class="school">
 <button class="mobile-toggle icon-button" aria-label="Кушодани меню" aria-controls="sidebar" aria-expanded="false">☰</button>
-<span class="school-icon">⌂</span>
-<div>
+<span class="school-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7M5 9v11h14V9M9 20v-6h6v6M9 9h6"/></svg></span>
+<div class="school-identity">
+<span class="country-label">ТОҶИКИСТОН · МАОРИФ</span>
 <strong>{{ school.name }}</strong>
 <small>Китобхонаи мактаб</small>
 </div>
 </div>
 <div class="topbar-right">
-<span class="year-chip">{{ school.academic_year }}</span>{% if school.code == 'DEMO' %}<span class="badge amber">DEMO{% if demo_mode %} · SQLite{% endif %}</span>{% endif %}<span class="header-divider">
-</span>
+<span class="year-chip"><small>Соли таҳсил</small><b>{{ school.academic_year }}</b></span>{% if school.code == 'DEMO' %}<span class="badge amber">DEMO{% if demo_mode %} · SQLite{% endif %}</span>{% endif %}<div class="topbar-account">
 <span class="avatar header-avatar">{{ request.user.username|first|upper }}</span>
 <div class="header-user">
 <strong>{{ request.user.username }}</strong>
 <small>{{ membership.get_role_display }}</small>
+</div>
 </div>
 </div>
 </header>
