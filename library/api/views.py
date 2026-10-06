@@ -14,7 +14,9 @@ class Students(generics.ListAPIView):
         qs=Student.objects.filter(school=self.request.school).prefetch_related('enrollments')
         if q:=self.request.query_params.get('q'):qs=qs.filter(full_name__icontains=q)
         if grade:=self.request.query_params.get('grade'):
-            try:grade=int(grade)
+            try:
+                if grade not in {str(n) for n in range(1,12)}:raise ValueError
+                grade=int(grade)
             except ValueError:raise services.DomainError('Синф бояд рақам бошад.')
             qs=qs.filter(enrollments__academic_year=self.request.school.academic_year,enrollments__grade=grade)
         return qs
@@ -24,7 +26,7 @@ class Students(generics.ListAPIView):
 class Editions(generics.ListAPIView):
     serializer_class=EditionRead
     def get_queryset(self):
-        qs=Edition.objects.filter(book__school=self.request.school).select_related('book','stock').prefetch_related('tariffs')
+        qs=Edition.objects.filter(book__school=self.request.school).select_related('book__school','stock').prefetch_related('tariffs')
         if q:=self.request.query_params.get('q'):qs=qs.filter(book__title__icontains=q)
         return qs
     def post(self,request):
@@ -69,13 +71,15 @@ class Returns(APIView):
 
 class Catalog(generics.ListAPIView):
     serializer_class=EditionRead
-    def get_queryset(self):return Edition.objects.filter(book__school=self.request.school).select_related('book','stock').prefetch_related('tariffs')
+    def get_queryset(self):return Edition.objects.filter(book__school=self.request.school).select_related('book__school','stock').prefetch_related('tariffs')
     def post(self,request):
         obj=services.save_inventory(user=request.user,school=request.school,**validated(InventoryWrite,request.data))
         return Response(EditionRead(obj).data,status=201)
 class CatalogEdit(APIView):
     def post(self,request,pk):
-        obj=services.save_inventory(user=request.user,school=request.school,edition_id=pk,**validated(InventoryWrite,request.data))
+        data=validated(InventoryWrite,request.data)
+        if not data.get('expected_revision'):raise services.DomainError('expected_revision аз ҷавоби каталог лозим аст.')
+        obj=services.save_inventory(user=request.user,school=request.school,edition_id=pk,**data)
         return Response(EditionRead(obj).data)
 class CatalogIssueConfirm(APIView):
     def post(self,request):

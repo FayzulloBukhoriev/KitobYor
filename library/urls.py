@@ -1,6 +1,11 @@
 from django.urls import path,include
 from . import ui
+from .views import AccountPasswordChange
 urlpatterns=[
+    path('sms/',ui.sms_messages,name='sms_messages'),
+    path('account/',ui.account,name='account'),
+    path('account/password/',AccountPasswordChange.as_view(),name='password_change'),
+    path('account/audit/',ui.audit_log,name='audit_log'),
     path('',ui.dashboard,name='dashboard'),
     path('students/',ui.students,name='students'),
     path('students/new/',ui.student_form,name='student_new'),

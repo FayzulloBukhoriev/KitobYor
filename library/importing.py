@@ -15,7 +15,7 @@ HEADERS=['full_name','grade','group','address','parent_name','parent_phone']
 MAX_ROWS=500
 
 def parse_upload(file=None,pasted=''):
-    raw=file.read() if file else pasted.encode('utf-8')
+    raw=file.read(2*1024*1024+1) if file else pasted.encode('utf-8')
     if len(raw)>2*1024*1024:raise services.DomainError('Ҳаҷм аз 2 MB зиёд аст.')
     if file and file.name.lower().endswith('.xlsx'):
         try:
@@ -26,9 +26,11 @@ def parse_upload(file=None,pasted=''):
             sheet=wb.active
             rows=[]
             if (sheet.max_row or 0)>MAX_ROWS+1:raise services.DomainError('Дар Excel то 500 сатр иҷозат аст; сатрҳои холии зиёдатиро тоза кунед.')
-            for row in sheet.iter_rows(max_col=min(sheet.max_column or 8,8),values_only=True):
+            for row in sheet.iter_rows(max_col=9,values_only=True):
                 if len(rows)>MAX_ROWS:raise services.DomainError('Дар як импорт то 500 хонанда иҷозат аст.')
-                rows.append(list(row[:8]))
+                row=list(row)
+                while row and row[-1] is None:row.pop()
+                rows.append(row)
             wb.close()
         except (BadZipFile,ValueError,KeyError,OSError,InvalidFileException,ParseError) as exc:raise services.DomainError('Файли Excel хонда нашуд.') from exc
     else:
@@ -37,13 +39,15 @@ def parse_upload(file=None,pasted=''):
         except UnicodeDecodeError as exc:raise services.DomainError('CSV бояд UTF-8 бошад.') from exc
         first=text.splitlines()[0] if text.strip() else ''
         delimiter='\t' if '\t' in first else (';' if first.count(';')>first.count(',') else ',')
-        rows=list(csv.reader(io.StringIO(text),delimiter=delimiter))
+        try:rows=list(csv.reader(io.StringIO(text),delimiter=delimiter,strict=True))
+        except csv.Error as exc:raise services.DomainError('CSV нодуруст аст ё як майдон аз ҳад калон мебошад.') from exc
     if not rows:raise services.DomainError('Рӯйхат холӣ аст.')
     headers=[str(v or '').strip().lower() for v in rows[0]]
     allowed=set(HEADERS)|{'language','code'}
     if len(set(headers))!=len(headers) or not {'full_name','grade','group','address'}.issubset(headers) or not set(headers).issubset(allowed):
         raise services.DomainError('Сутунҳои full_name, grade, group, address лозиманд; parent_name ва parent_phone ихтиёрӣ. Намунаро боргирӣ кунед.')
     body=[r for r in rows[1:] if any(v is not None and str(v).strip() for v in r)]
+    if any(len(row)>len(headers) for row in body):raise services.DomainError('Дар баъзе сатрҳо сутуни зиёдатӣ ҳаст.')
     if not body or len(body)>MAX_ROWS:raise services.DomainError('Рӯйхат бояд 1–500 хонанда дошта бошад.')
     return [{h:str(r[i] if i<len(r) and r[i] is not None else '').strip() for i,h in enumerate(headers)} for r in body],hashlib.sha256(raw).hexdigest()
 

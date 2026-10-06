@@ -39,7 +39,7 @@ class Enrollment(models.Model):
     student = models.ForeignKey(Student, on_delete=models.PROTECT, related_name='enrollments')
     academic_year = models.CharField(max_length=9)
     grade = models.PositiveSmallIntegerField(validators=GRADE)
-    group = models.CharField(max_length=8, default='А')
+    group = models.CharField(max_length=8, default='A')
     language = models.CharField(max_length=40, default='Тоҷикӣ')
     class Meta:
         constraints = [models.UniqueConstraint(fields=['student','academic_year'],name='student_year_enrollment'),models.CheckConstraint(condition=Q(grade__gte=1,grade__lte=11),name='enrollment_grade_range')]
@@ -195,7 +195,24 @@ class SmsNotification(models.Model):
     invoice = models.OneToOneField(Invoice,on_delete=models.PROTECT,related_name='sms_notification')
     destination = models.CharField(max_length=20,blank=True)
     body = models.TextField()
-    status = models.CharField(max_length=20,default='preview',choices=[('preview','Пешнамоиш'),('missing_phone','Рақами телефон нест'),('sent','Фиристода'),('failed','Хато')])
+    status = models.CharField(max_length=20,default='preview',db_index=True,choices=[('preview','Пешнамоиш'),('missing_phone','Телефон нест'),('queued','Дар навбат'),('processing','Дар ҳоли фиристодан'),('retry','Интизори такрор'),('submitted','Ба оператор супорида шуд'),('uncertain','Санҷиши масъул лозим'),('sent','Фиристода — таърихи пешина'),('failed','Фиристода нашуд')])
     created_at = models.DateTimeField(auto_now_add=True)
     sent_at = models.DateTimeField(null=True,blank=True)
     provider_reference = models.CharField(max_length=160,blank=True)
+
+    attempts = models.PositiveSmallIntegerField(default=0)
+    next_attempt_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    last_error = models.CharField(max_length=250, blank=True)
+
+class SmsPart(models.Model):
+    notification = models.ForeignKey(SmsNotification, on_delete=models.PROTECT, related_name='parts')
+    sequence = models.PositiveSmallIntegerField()
+    pdu = models.TextField()
+    tpdu_length = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=16, default='pending', choices=[('pending','Дар навбат'),('submitting','Фиристода мешавад'),('submitted','Қабул шуд'),('uncertain','Номаълум')])
+    reference = models.CharField(max_length=32, blank=True)
+    submitted_at = models.DateTimeField(null=True, blank=True)
+    class Meta:
+        ordering = ['sequence']
+        constraints = [models.UniqueConstraint(fields=['notification','sequence'], name='sms_unique_part')]

@@ -29,7 +29,7 @@ def student_query(request):
     enrollment_filters={'enrollments__academic_year':request.school.academic_year}
     q=request.GET.get('q','').strip();grade=request.GET.get('grade','');group=normalize_group(request.GET.get('group',''))
     if q:qs=qs.filter(Q(full_name__icontains=q)|Q(code__icontains=q))
-    if grade.isdigit() and 1<=int(grade)<=11:enrollment_filters['enrollments__grade']=int(grade)
+    if grade in {str(n) for n in range(1,12)}:enrollment_filters['enrollments__grade']=int(grade)
     if group:enrollment_filters['enrollments__group']=group
     return qs.filter(**enrollment_filters).distinct()
 
@@ -40,14 +40,14 @@ def dashboard(request):
     school=request.school
     money=Invoice.objects.filter(school=school,loan__academic_year=school.academic_year).aggregate(total=Sum('total'),paid=Sum('paid'))
     total,paid=money['total'] or Decimal('0.00'),money['paid'] or Decimal('0.00')
-    stats={'students':Student.objects.filter(school=school,active=True,enrollments__academic_year=school.academic_year).count(),'available':Stock.objects.filter(edition__book__school=school).aggregate(n=Sum('available'))['n'] or 0,'issued':LoanLine.objects.filter(loan__school=school,state='issued').count(),'total':total,'paid':paid,'paid_count':Invoice.objects.filter(school=school,paid=F('total')).count(),'unpaid_count':Invoice.objects.filter(school=school,paid__lt=F('total')).count(),'paid_amount':paid}
+    stats={'students':Student.objects.filter(school=school,active=True,enrollments__academic_year=school.academic_year).count(),'available':Stock.objects.filter(edition__book__school=school).aggregate(n=Sum('available'))['n'] or 0,'issued':LoanLine.objects.filter(loan__school=school,state='issued').count(),'total':total,'paid':paid,'paid_count':Invoice.objects.filter(school=school,loan__academic_year=school.academic_year,paid=F('total')).count(),'unpaid_count':Invoice.objects.filter(school=school,loan__academic_year=school.academic_year,paid__lt=F('total')).count(),'paid_amount':paid}
     return page(request,'dashboard',active='dashboard',title='Пештахта',stats=stats,recent=Invoice.objects.filter(school=school).select_related('loan__student')[:5],low=Edition.objects.filter(book__school=school,stock__available__lt=5).select_related('book','stock')[:5],activity=AuditEvent.objects.filter(school=school).select_related('user').order_by('-id')[:5])
 
 @school_required()
 def students(request):
     rows=paginate(request,student_query(request))
     latest={}
-    for inv in Invoice.objects.filter(school=request.school,loan__student_id__in=[r.pk for r in rows],loan__academic_year=request.school.academic_year).order_by('-id'):
+    for inv in Invoice.objects.filter(school=request.school,loan__student_id__in=[r.pk for r in rows],loan__academic_year=request.school.academic_year).select_related('loan').order_by('-id'):
         latest.setdefault(inv.loan.student_id,inv)
     for student in rows:student.latest_invoice=latest.get(student.pk)
     return page(request,'students',active='students',title='Хонандагон',rows=rows,q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=normalize_group(request.GET.get('group','')))
@@ -104,7 +104,7 @@ def inventory(request):
     qs=Edition.objects.filter(book__school=request.school).select_related('book','stock').prefetch_related('tariffs')
     q=request.GET.get('q','').strip();grade=request.GET.get('grade','')
     if q:qs=qs.filter(Q(book__title__icontains=q)|Q(code__icontains=q)|Q(book__code__icontains=q))
-    if grade.isdigit() and 1<=int(grade)<=11:qs=qs.filter(book__grade=int(grade))
+    if grade in {str(n) for n in range(1,12)}:qs=qs.filter(book__grade=int(grade))
     rows=paginate(request,qs.order_by('book__grade','book__title','-year','id'))
     for ed in rows:ed.current_tariff=next((t for t in ed.tariffs.all() if t.academic_year==request.school.academic_year),None)
     return page(request,'inventory',active='inventory',title='Анбори китобҳо',rows=rows,q=q,grade=grade)
@@ -116,8 +116,9 @@ def catalog_form(request,pk=None):
     initial={}
     if ed:
         tariff=ed.tariffs.filter(academic_year=request.school.academic_year).first()
-        initial=dict(title=ed.book.title,grade=ed.book.grade,year=ed.year,quantity=ed.stock.available,fee=tariff.fee if tariff else 0)
+        initial=dict(title=ed.book.title,grade=ed.book.grade,year=ed.year,quantity=ed.stock.available if hasattr(ed,'stock') else 0,fee=tariff.fee if tariff else 0,expected_revision=services.inventory_revision(ed))
     form=CatalogForm(request.POST if request.method=='POST' else None,initial=initial)
+    form.fields['expected_revision'].required=bool(ed)
     if request.method=='POST' and form.is_valid():
         try:
             services.save_inventory(user=request.user,school=request.school,edition_id=ed.pk if ed else None,**form.cleaned_data)
@@ -136,7 +137,7 @@ def kit_form(request):
     if request.method=='POST' and form.is_valid():
         try:
             services.create_kit(user=request.user,school=request.school,name=form.cleaned_data['name'],grade=form.cleaned_data['grade'],language=form.cleaned_data['language'],items=form.cleaned_data['items'])
-            messages.success(request,'Маҷмӯа омода шуд. Барои хонандагони ин синф худкор пешниҳод мешавад.');return redirect('kits')
+            messages.success(request,'Маҷмӯа сабт шуд. Истифодаи он ихтиёрӣ аст.');return redirect('kits')
         except (services.DomainError,ValidationError) as exc:error(form,exc)
     pairs=[(form[f'edition_{n}'],form[f'alternatives_{n}']) for n in range(1,16)]
     return page(request,'kit_form',active='kits',title='Маҷмӯаи нав',form=form,pairs=pairs)
@@ -147,32 +148,38 @@ def issue(request):
     student=None;preview=None
     raw=request.POST.get('student_id') if request.method=='POST' else request.GET.get('student')
     if raw:
-        student=get_object_or_404(Student,school=request.school,active=True,pk=raw if str(raw).isdigit() else 0)
+        student=get_object_or_404(Student,school=request.school,active=True,pk=int(raw) if str(raw).isascii() and str(raw).isdigit() and len(str(raw))<=18 else 0)
         try:
             if request.method=='POST':
                 ids=[int(v) for v in request.POST.getlist('editions')]
                 total=Decimal(request.POST.get('expected_total',''))
                 inv=services.confirm_catalog_issue(user=request.user,school=request.school,student_id=student.pk,edition_ids=ids,token=UUID(request.POST.get('token','')),expected_total=total)
-                messages.success(request,'Иҷора тасдиқ шуд. Рақами дохилии пардохт ва пешнамоиши SMS омодаанд.');return redirect('invoice_detail',pk=inv.pk)
+                messages.success(request,'Иҷора тасдиқ шуд. Рақами пардохт ва ҳолати SMS дар поён нишон дода шудаанд.');return redirect('invoice_detail',pk=inv.pk)
             preview=services.preview_catalog(request.school,student.pk)
         except (ValueError,ArithmeticError,services.DomainError) as exc:
             messages.error(request,str(exc) if isinstance(exc,services.DomainError) else 'Интихоби китобҳо ва маблағро санҷед.')
-            preview=services.preview_catalog(request.school,student.pk)
+            try:preview=services.preview_catalog(request.school,student.pk)
+            except services.DomainError:return redirect('students')
+    if request.method=='POST' and preview:
+        selected=set(request.POST.getlist('editions'))
+        for row in preview['items']:
+            chosen=next((c for c in row['choices'] if str(c['edition_id']) in selected and c['enabled']),None)
+            if chosen and not row['already_held']:row['suggested']=chosen;row['selected']=True
     return page(request,'issue',active='issue',title='Додани китоб',students=paginate(request,student_query(request).filter(active=True)),student=student,preview=preview,token=str(uuid4()),q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=normalize_group(request.GET.get('group','')))
 
 
 def invoice_query(request):
     qs=Invoice.objects.filter(school=request.school).select_related('loan__student').prefetch_related('loan__student__enrollments').annotate(book_count=Count('loan__lines'))
     q=request.GET.get('q','').strip();status=request.GET.get('status','')
-    if q.isdigit() and q.startswith('10'):
+    if q.isascii() and q.isdigit() and q.startswith('10'):
         pk=q[2:]
-        qs=qs.filter(pk=int(pk)) if pk.isdigit() else qs.none()
+        qs=qs.filter(pk=int(pk)) if pk.isascii() and pk.isdigit() and len(pk)<=18 else qs.none()
     elif q:qs=qs.filter(loan__student__full_name__icontains=q)
     if status=='paid':qs=qs.filter(paid=F('total'))
     elif status=='unpaid':qs=qs.filter(paid__lt=F('total'))
     grade=request.GET.get('grade','');group=normalize_group(request.GET.get('group',''))
     filters={}
-    if grade.isdigit() and 1<=int(grade)<=11:filters['loan__student__enrollments__grade']=int(grade)
+    if grade in {str(n) for n in range(1,12)}:filters['loan__student__enrollments__grade']=int(grade)
     if group in 'ABCDE' and len(group)==1:filters['loan__student__enrollments__group']=group
     if filters:
         filters['loan__student__enrollments__academic_year']=F('loan__academic_year')
@@ -219,7 +226,7 @@ def export(request):
         writer.writerow(['Китоб','Синф','Соли нашр','Шумора дар анбор','Нархи иҷора'])
         for ed in Edition.objects.filter(book__school=request.school).select_related('book','stock').prefetch_related('tariffs'):
             tariff=next((t for t in ed.tariffs.all() if t.academic_year==request.school.academic_year),None)
-            writer.writerow([csv_safe(ed.book.title),ed.book.grade,ed.year,ed.stock.available,tariff.fee if tariff else ''])
+            writer.writerow([csv_safe(ed.book.title),ed.book.grade,ed.year,ed.stock.available if hasattr(ed,'stock') else 0,tariff.fee if tariff else ''])
     else:
         writer.writerow(['Рақами пардохт (дохилӣ)','Хонанда','Синф','Гурӯҳ','Шумораи китобҳо','Китобҳо','Маблағ','Ҳолати пардохт','Сана'])
         qs=invoice_query(request).prefetch_related('loan__lines')
@@ -230,3 +237,34 @@ def export(request):
             books='; '.join(f'{line.title_snapshot} ({line.year_snapshot})' for line in inv.loan.lines.all())
             writer.writerow([inv.payment_number,csv_safe(inv.loan.student.full_name),en.grade if en else '',en.group if en else '',inv.book_count,csv_safe(books),inv.total,'Пардохтшуда' if inv.balance==0 else 'Пардохтнашуда',inv.created_at.date()])
     return response
+
+@school_required()
+@require_http_methods(['GET','POST'])
+def sms_messages(request):
+    from .notifications import requeue_sms
+    if request.method=='POST':
+        try:
+            raw=request.POST.get('notification_id','')
+            if not raw.isascii() or not raw.isdigit() or len(raw)>18:raise services.DomainError('Паём ёфт нашуд.')
+            item=requeue_sms(user=request.user,school=request.school,notification_id=int(raw))
+            messages.success(request,'SMS ба навбат гузошта шуд.' if item.status=='queued' else 'Маълумоти SMS нав шуд. Ҳолатро санҷед.')
+            return redirect('sms_messages')
+        except services.DomainError as exc:messages.error(request,str(exc))
+    status=request.GET.get('status','');q=request.GET.get('q','').strip()
+    qs=SmsNotification.objects.filter(invoice__school=request.school).select_related('invoice__loan__student').prefetch_related('parts').order_by('-id')
+    if status in dict(SmsNotification._meta.get_field('status').choices):qs=qs.filter(status=status)
+    if q:qs=qs.filter(Q(invoice__loan__student__full_name__icontains=q)|Q(destination__icontains=q))
+    from django.conf import settings
+    return page(request,'sms',active='sms',title='Паёмҳо ба волидайн',rows=paginate(request,qs),status=status,q=q,sms_backend=settings.SMS_BACKEND,sms_statuses=SmsNotification._meta.get_field('status').choices)
+
+@school_required()
+def account(request):
+    from .models import Membership
+    from django.conf import settings
+    team=Membership.objects.filter(school=request.school).select_related('user').order_by('user__username') if request.member.role=='admin' else None
+    return page(request,'account',active='account',title='Ҳисоби ман',team=team,sms_backend=settings.SMS_BACKEND)
+
+@school_required('admin')
+def audit_log(request):
+    qs=AuditEvent.objects.filter(school=request.school).select_related('user').order_by('-id')
+    return page(request,'audit',active='account',title='Таърихи амалҳо',rows=paginate(request,qs))

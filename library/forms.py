@@ -1,5 +1,6 @@
 from decimal import Decimal
 from django import forms
+from django.utils import timezone
 from .models import Edition, Student
 
 GRADES=[('', 'Ҳамаи синфҳо')]+[(n, f'Синфи {n}') for n in range(1,12)]
@@ -17,19 +18,18 @@ class StudentForm(forms.Form):
     full_name=forms.CharField(label='Ному насаби хонанда',max_length=200)
     grade=forms.TypedChoiceField(label='Синф',choices=GRADES[1:],coerce=int)
     group=GroupField(label='Гурӯҳ',choices=GROUPS,initial='A')
-    language=forms.ChoiceField(label='Забони таҳсил',choices=LANGUAGES,required=False,initial='Тоҷикӣ')
     address=forms.CharField(label='Суроға',max_length=250)
     parent_name=forms.CharField(label='Номи падар ё модар',max_length=160,required=False)
-    parent_phone=forms.CharField(label='Телефони падар ё модар',max_length=20,required=False,help_text='Барои SMS: +992 ва 9 рақам. Ҳоло танҳо пешнамоиши паём омода мешавад.')
-    def clean_language(self):return self.cleaned_data.get('language') or 'Тоҷикӣ'
+    parent_phone=forms.CharField(label='Телефони падар ё модар',max_length=20,required=False,help_text='Барои SMS: +992 ва 9 рақам. Масалан, +992900000000.')
     def clean_parent_phone(self):
         from .validators import normalize_parent_phone
         return normalize_parent_phone(self.cleaned_data.get('parent_phone',''))
 
 class CatalogForm(forms.Form):
+    expected_revision=forms.CharField(required=False,widget=forms.HiddenInput)
     title=forms.CharField(label='Номи китоб',max_length=180)
     grade=forms.TypedChoiceField(label='Барои кадом синф',choices=GRADES[1:],coerce=int)
-    year=forms.IntegerField(label='Соли нашр',min_value=1900,max_value=2100,initial=2025)
+    year=forms.IntegerField(label='Соли нашр',min_value=1900,max_value=2100,initial=lambda:timezone.localdate().year)
     quantity=forms.IntegerField(label='Шумораи нусхаҳо дар анбор',min_value=0,max_value=100000)
     fee=forms.DecimalField(label='Нархи иҷораи як китоб · сомонӣ',min_value=0,max_digits=10,decimal_places=2)
     def clean_title(self):return ' '.join(self.cleaned_data['title'].split())
@@ -46,7 +46,6 @@ class TariffForm(forms.Form):
 class KitForm(forms.Form):
     name=forms.CharField(label='Номи маҷмӯа',max_length=120)
     grade=forms.TypedChoiceField(label='Синф',choices=GRADES[1:],coerce=int)
-    language=forms.ChoiceField(label='Забони таҳсил',choices=LANGUAGES)
     def __init__(self,*args,school,**kwargs):
         super().__init__(*args,**kwargs)
         editions=Edition.objects.filter(book__school=school).select_related('book').order_by('book__grade','book__title','-year','id')
@@ -54,9 +53,9 @@ class KitForm(forms.Form):
             self.fields[f'edition_{n}']=forms.ModelChoiceField(label=f'Китоби {n}',queryset=editions,required=n<=5,empty_label='Интихоби китоб ва нашр')
             self.fields[f'alternatives_{n}']=forms.ModelMultipleChoiceField(label='Нашрҳои ивазшаванда',queryset=editions,required=False,widget=forms.SelectMultiple(attrs={'size':2}))
             for key in (f'edition_{n}',f'alternatives_{n}'):
-                self.fields[key].label_from_instance=lambda ed:f'Синфи {ed.book.grade} · {ed.book.title} · {ed.year} · {ed.book.language} · {ed.code}'
+                self.fields[key].label_from_instance=lambda ed:f'Синфи {ed.book.grade} · {ed.book.title} · {ed.year}'
     def clean(self):
-        data=super().clean();items=[];seen=set()
+        data=super().clean();data['language']='Тоҷикӣ';items=[];seen=set()
         for n in range(1,16):
             ed=data.get(f'edition_{n}');alts=data.get(f'alternatives_{n}',[])
             if not ed:
@@ -85,3 +84,13 @@ class ImportForm(forms.Form):
         f=data.get('file')
         if f and f.size>2*1024*1024:self.add_error('file','Ҳаҷми файл бояд то 2 MB бошад.')
         return data
+
+from django.contrib.auth.forms import PasswordChangeForm
+class SchoolPasswordChangeForm(PasswordChangeForm):
+    error_messages={**PasswordChangeForm.error_messages,'password_mismatch':'Ду рамзи нав якхела нестанд.','password_incorrect':'Рамзи ҷорӣ нодуруст аст.'}
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.fields['old_password'].label='Рамзи ҷорӣ'
+        self.fields['new_password1'].label='Рамзи нав'
+        self.fields['new_password1'].help_text='Камаш 12 аломат. Ном, рамзи маъмул ё танҳо рақамҳоро истифода набаред.'
+        self.fields['new_password2'].label='Такрори рамзи нав'

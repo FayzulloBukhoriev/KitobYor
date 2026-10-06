@@ -17,7 +17,7 @@ def fingerprint(data):
     return hashlib.sha256(json.dumps(data,sort_keys=True,default=str,separators=(',',':')).encode()).hexdigest()
 
 def authorize(user,school,roles):
-    if not Membership.objects.filter(user=user,school=school,role__in=roles).exists():
+    if not user.is_authenticated or not user.is_active or not Membership.objects.filter(user=user,school=school,role__in=roles).exists():
         raise DomainError('Барои ин амал ваколат надоред.','forbidden',403)
 
 def lock_school(school):
@@ -244,7 +244,7 @@ def close_lines(*,user,school,loan_id,lines):
     return loan
 
 @transaction.atomic
-def update_student(*,user,school,student_id,full_name,address,grade,group,language,code=None,parent_name='',parent_phone=''):
+def update_student(*,user,school,student_id,full_name,address,grade,group,language=None,code=None,parent_name='',parent_phone=''):
     authorize(user,school,['admin','librarian']);lock_school(school)
     student=find(Student.objects.filter(school=school),student_id)
     student.code,student.full_name,student.address=code or student.code,full_name,address
@@ -255,19 +255,31 @@ def update_student(*,user,school,student_id,full_name,address,grade,group,langua
     from .forms import normalize_group
     group=normalize_group(group)
     if group not in 'ABCDE' or len(group)!=1:raise DomainError('Гурӯҳ бояд A–E бошад.')
-    en.grade,en.group,en.language=grade,group,language;en.full_clean();en.save()
+    en.grade,en.group=grade,group
+    if language is not None:en.language=language
+    en.full_clean();en.save()
     audit(school,user,'student.updated',student.pk)
     return student
 
+def inventory_revision(edition):
+    from django.utils.crypto import salted_hmac
+    tariff=next((t for t in edition.tariffs.all() if t.academic_year==edition.book.school.academic_year),None)
+    data=[edition.pk,edition.book.title,edition.book.grade,edition.year,edition.stock.available if hasattr(edition,'stock') else 0,str(tariff.fee) if tariff else '',tariff.approved if tariff else False]
+    return salted_hmac('inventory-revision',json.dumps(data,ensure_ascii=False)).hexdigest()
+
 @transaction.atomic
-def save_inventory(*,user,school,title,grade,year,quantity,fee,edition_id=None):
+def save_inventory(*,user,school,title,grade,year,quantity,fee,edition_id=None,expected_revision=None):
     """Simple teacher-facing catalog. Internal codes are generated, never requested in UI."""
     authorize(user,school,['admin','librarian']);lock_school(school)
     title=' '.join(title.split())
     if not title or quantity<0 or not fee.is_finite() or fee<0:raise DomainError('Ном, шумора ва нархро санҷед.')
     if not 1<=grade<=11 or not 1900<=year<=2100:raise DomainError('Синф ё соли нашр нодуруст аст.')
     if edition_id:
-        ed=find(Edition.objects.select_related('book').filter(book__school=school),edition_id)
+        ed=find(Edition.objects.select_related('book__school').filter(book__school=school),edition_id)
+        if expected_revision is not None:
+            from django.utils.crypto import constant_time_compare
+            if not constant_time_compare(expected_revision,inventory_revision(ed)):
+                raise DomainError('Анборро масъули дигар тағйир додааст. Саҳифаро нав карда, бақияи навро санҷед.','stale_inventory',409)
         # A shared book title/grade affects all editions; loan title snapshots remain intact.
         if (ed.book.title,ed.book.grade)!=(title,grade):
             other=Book.objects.filter(school=school,title__iexact=title,grade=grade,language=ed.book.language).exclude(pk=ed.book_id).exists()
@@ -323,7 +335,7 @@ def confirm_catalog_issue(*,user,school,student_id,edition_ids,token,expected_to
     if len(editions)!=len(ids):raise DomainError('Нашр ёфт нашуд.','not_found',404)
     books=[ed.book_id for ed in editions]
     if len(set(books))!=len(books):raise DomainError('Ду нашри як китоб интихоб шудааст.')
-    if any(ed.book.grade!=en.grade for ed in editions):raise DomainError('Китоб ба синф ё забони хонанда мувофиқ нест.')
+    if any(ed.book.grade!=en.grade for ed in editions):raise DomainError('Китоб ба синфи хонанда мувофиқ нест.')
     if LoanLine.objects.filter(student=student,state='issued',edition__book_id__in=books).exists():raise DomainError('Хонанда ин китобро аллакай гирифтааст.','already_held',409)
     stocks={s.edition_id:s for s in Stock.objects.select_for_update().filter(edition_id__in=ids).order_by('pk')}
     selected=[]

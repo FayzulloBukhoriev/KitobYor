@@ -17,7 +17,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [{'BACKEND':'django.template.backends.django.DjangoTemplates','DIRS':[BASE_DIR/'templates'],'APP_DIRS':True,'OPTIONS':{'context_processors':['django.template.context_processors.request','django.contrib.auth.context_processors.auth','django.contrib.messages.context_processors.messages','library.context.school_context']}}]
 WSGI_APPLICATION = 'config.wsgi.application'
 DATABASES = {'default':{'ENGINE':'django.db.backends.postgresql','NAME':os.environ.get('PGDATABASE','kitobyor'),'USER':os.environ.get('PGUSER','kitobyor'),'PASSWORD':os.environ.get('PGPASSWORD',''),'HOST':os.environ.get('PGHOST','127.0.0.1'),'PORT':os.environ.get('PGPORT','5432'),'CONN_MAX_AGE':60,'OPTIONS':{'connect_timeout':5}}}
-AUTH_PASSWORD_VALIDATORS = [{'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},{'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator'},{'NAME':'django.contrib.auth.password_validation.CommonPasswordValidator'},{'NAME':'django.contrib.auth.password_validation.NumericPasswordValidator'}]
+AUTH_PASSWORD_VALIDATORS = [{'NAME':'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},{'NAME':'django.contrib.auth.password_validation.MinimumLengthValidator','OPTIONS':{'min_length':12}},{'NAME':'django.contrib.auth.password_validation.CommonPasswordValidator'},{'NAME':'django.contrib.auth.password_validation.NumericPasswordValidator'}]
 LANGUAGE_CODE = 'tg'
 TIME_ZONE = 'Asia/Dushanbe'
 USE_I18N = True
@@ -44,3 +44,37 @@ CSRF_TRUSTED_ORIGINS = [s for s in os.environ.get('CSRF_TRUSTED_ORIGINS','').spl
 DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024
 REST_FRAMEWORK = {'DEFAULT_AUTHENTICATION_CLASSES':['rest_framework.authentication.SessionAuthentication'],'DEFAULT_PERMISSION_CLASSES':['library.api.permissions.SchoolPermission'],'DEFAULT_RENDERER_CLASSES':['rest_framework.renderers.JSONRenderer'],'DEFAULT_PAGINATION_CLASS':'rest_framework.pagination.PageNumberPagination','PAGE_SIZE':50,'EXCEPTION_HANDLER':'library.api.exceptions.exception_handler'}
+
+# SMS is explicit. Demo always suppresses hardware sends.
+SMS_BACKEND = os.environ.get('SMS_BACKEND','preview')
+if SMS_BACKEND not in ('preview','gsm'):
+    raise ImproperlyConfigured('SMS_BACKEND must be preview or gsm.')
+SMS_MODEM_PORT = os.environ.get('SMS_MODEM_PORT','')
+SMS_MODEM_BAUDRATE = int(os.environ.get('SMS_MODEM_BAUDRATE','115200'))
+SMS_MODEM_TIMEOUT = int(os.environ.get('SMS_MODEM_TIMEOUT','45'))
+SMS_MAX_ATTEMPTS = 3
+SMS_LOCK_FILE = os.environ.get('SMS_LOCK_FILE',str(BASE_DIR/'local_data'/'sms.lock'))
+if not 5 <= SMS_MODEM_TIMEOUT <= 120:
+    raise ImproperlyConfigured('SMS_MODEM_TIMEOUT must be between 5 and 120 seconds.')
+if not DEBUG:
+    if len(SECRET_KEY)<50 or 'replace-with' in SECRET_KEY:
+        raise ImproperlyConfigured('Production requires a unique DJANGO_SECRET_KEY of at least 50 characters.')
+    if len(DATABASES['default']['PASSWORD'])<20 or 'replace-with' in DATABASES['default']['PASSWORD']:
+        raise ImproperlyConfigured('Production requires a unique database password of at least 20 characters.')
+    if '*' in ALLOWED_HOSTS:
+        raise ImproperlyConfigured('Use explicit production ALLOWED_HOSTS.')
+if os.environ.get('TRUST_PROXY_HEADERS')=='1':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO','https')
+SECURE_HSTS_SECONDS = int(os.environ.get('SECURE_HSTS_SECONDS','3600')) if not DEBUG else 0
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.environ.get('HSTS_INCLUDE_SUBDOMAINS')=='1'
+SECURE_HSTS_PRELOAD = os.environ.get('HSTS_PRELOAD')=='1'
+SECURE_REDIRECT_EXEMPT = [r'^healthz/$']
+SECURE_REFERRER_POLICY = 'same-origin'
+X_FRAME_OPTIONS = 'DENY'
+MIDDLEWARE.append('library.middleware.WorkspaceHeaders')
+LOGGING = {
+    'version':1,'disable_existing_loggers':False,
+    'formatters':{'standard':{'format':'{asctime} {levelname} {name} {message}','style':'{'}},
+    'handlers':{'console':{'class':'logging.StreamHandler','formatter':'standard'}},
+    'root':{'handlers':['console'],'level':'INFO'},
+}

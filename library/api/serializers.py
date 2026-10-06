@@ -29,13 +29,17 @@ class CatalogWrite(serializers.Serializer):
     isbn=serializers.CharField(max_length=20,required=False,allow_blank=True)
 
 class EditionRead(serializers.ModelSerializer):
+    revision=serializers.SerializerMethodField()
+    def get_revision(self,obj):
+        from library.services import inventory_revision
+        return inventory_revision(obj)
     title=serializers.CharField(source='book.title')
     grade=serializers.IntegerField(source='book.grade')
     language=serializers.CharField(source='book.language')
     available=serializers.SerializerMethodField()
     damaged=serializers.SerializerMethodField()
     tariffs=serializers.SerializerMethodField()
-    class Meta: model=Edition;fields=['id','book_id','title','grade','language','code','year','publisher','isbn','available','damaged','tariffs']
+    class Meta: model=Edition;fields=['revision','id','book_id','title','grade','language','code','year','publisher','isbn','available','damaged','tariffs']
     def get_available(self,obj): return obj.stock.available if hasattr(obj,'stock') else 0
     def get_damaged(self,obj): return obj.stock.damaged if hasattr(obj,'stock') else 0
     def get_tariffs(self,obj):return [{'academic_year':t.academic_year,'fee':str(t.fee),'approved':t.approved} for t in obj.tariffs.all()]
@@ -97,6 +101,7 @@ class PaymentRead(serializers.ModelSerializer):
     class Meta:model=Payment;fields=['id','invoice_id','amount','receipt','note','created_at']
 
 class InventoryWrite(serializers.Serializer):
+    expected_revision=serializers.CharField(required=False,allow_blank=True)
     title=serializers.CharField(max_length=180)
     grade=serializers.IntegerField(min_value=1,max_value=11)
     year=serializers.IntegerField(min_value=1900,max_value=2100)
