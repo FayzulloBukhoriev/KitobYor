@@ -1,57 +1,38 @@
-# Схемаи PostgreSQL
+# Схемаи база · 1.0
 
-Манбаи иҷроӣ: `library/models.py` ва `library/migrations/0001_initial.py`. SQL аз мигратсия тавассути `python manage.py sqlmigrate library 0001` дар муҳити PostgreSQL гирифта мешавад.
+Манбаи иҷроӣ: library/models.py ва migrations/0001_initial.py, 0002_catalog_rental_contacts_sms.py. Migration 0002 маълумоти 0.2-ро нигоҳ медорад; initial migration тағйир дода нашудааст.
+
+| Ҷадвал | Вазифа ва маҳдудият |
+|---|---|
+| School / Membership | Мактаб, соли таҳсил, нақш ва ваколати корбар |
+| Student | Ном, суроға, parent_name, parent_phone; school + code unique, рамз худкор |
+| Enrollment | student + academic_year unique; grade 1–11, group A–E аз command |
+| Book / Edition | Ном ва синф; нашр бо сол 1900–2100; рамзҳои дохилии худкор |
+| Stock | Якто барои нашр, available/damaged ≥ 0 |
+| Tariff | edition + academic_year unique; Decimal fee ≥ 0 |
+| Kit / KitItem | Ихтиёрӣ; барои оянда ва таърихи 0.2 |
+| Loan | Мактаб, хонанда, соли таҳсил, kit nullable, token unique, request_hash |
+| LoanLine | edition, student, kit_item nullable, tariff, snapshot-и ном/сол/нарх |
+| Invoice | loan unique, reference UUID unique, total ≥ paid ≥ 0; payment_number property |
+| Payment | Маблағ > 0, token unique, school + receipt unique |
+| SmsNotification | invoice OneToOne, destination/body, status, sent_at, provider_reference |
+| StockMovement / AuditEvent | Таърихи бақия ва амалҳои масъул |
+| ImportBatch / LoginAttempt | Идемпотентии импорт ва маҳдудияти кӯшишҳои login |
+
+Publisher, ISBN ва language-и каталог дар база барои мувофиқат бо 0.2 мондаанд, дар формаи нав истифода намешаванд. Баргардонии таърихӣ нигоҳ дошта мешавад; route-и нав надорад. FK-и ҳисобдорӣ PROTECT дорад. LoanLine unique-и шартӣ барои edition/kit_item-и issued дорад; пешгирии ду нашри як Book бо қулфи мактаб дар services иҷро мешавад. Мувофиқати мактаб, синф ва алтернативаҳо низ қоидаи services аст.
+
+Маблағ PostgreSQL NUMERIC / Python Decimal аст. Нархҳо дар сомонӣ. Нарх аз соли нашр худкор тахмин намешавад: масъул нархи ҳар нашрро ворид мекунад.
 
 ```mermaid
 erDiagram
-    School ||--o{ Membership : access
-    School ||--o{ Student : owns
     Student ||--o{ Enrollment : years
-    School ||--o{ Book : catalog
-    Book ||--o{ Edition : editions
-    Edition ||--|| Stock : balance
-    Edition ||--o{ Tariff : year_price
-    School ||--o{ Kit : kits
-    Kit ||--o{ KitItem : contains
-    Edition ||--o{ KitItem : preferred
-    KitItem }o--o{ Edition : alternatives
-    Student ||--o{ Loan : borrows
-    Kit ||--o{ Loan : used
-    Loan ||--|{ LoanLine : copies
-    Edition ||--o{ LoanLine : issued
-    KitItem ||--o{ LoanLine : position
-    Tariff ||--o{ LoanLine : snapshot_source
+    Student ||--o{ Loan : rentals
+    Book ||--o{ Edition : years
+    Edition ||--|| Stock : quantity
+    Edition ||--o{ Tariff : price
+    Loan ||--|{ LoanLine : books
+    Edition ||--o{ LoanLine : copy
     Loan ||--|| Invoice : bill
-    Invoice ||--o{ Payment : settles
-    Edition ||--o{ StockMovement : ledger
-    School ||--o{ AuditEvent : actions
+    Invoice ||--o{ Payment : cash
+    Invoice ||--o| SmsNotification : preview
 ```
-
-| Ҷадвал | Майдонҳои асосӣ / маҳдудият |
-|---|---|
-| School | code unique, name, academic_year |
-| Membership | user unique, school, role: admin/librarian/accountant/viewer |
-| Student | school + code unique, full_name, address, active |
-| Enrollment | student + academic_year unique; grade 1–11, group, language |
-| Book | school + code unique; title, subject, grade 1–11, language |
-| Edition | book + code unique; year 1900–2100, publisher, isbn |
-| Stock | edition unique; available ва damaged ғайриманфӣ |
-| Tariff | edition + academic_year unique; fee ≥ 0, approved, note |
-| Kit | school + grade + language + academic_year unique |
-| KitItem | kit + label unique; preferred, alternatives, position |
-| Loan | school, student, kit, academic_year, token unique, request_hash, created_by/time |
-| LoanLine | edition, student, kit_item, tariff; title/year/fee_snapshot; state, closed_at |
-| Invoice | loan unique; school, reference UUID unique, total ≥ paid ≥ 0 |
-| Payment | invoice, school, amount > 0; token unique; school + receipt unique |
-| StockMovement | edition, delta_available, delta_damaged, kind, note, actor/time |
-| AuditEvent | school, actor, action, object_id, detail, time |
-| ImportBatch | school, token, file_hash, state; UI import preview/commit бо token ва revalidation |
-| LoginAttempt | key hash unique, failures, window_start |
-
-LoanLine маҳдудиятҳои unique-и шартӣ дорад: хонанда наметавонад ҳамон KitItem ё Edition-ро ду бор бо ҳолати `issued` нигоҳ дорад. Китоби баргардонда иҷораи нав дошта метавонад. Ҳолати issued бояд closed_at холӣ дошта бошад; ҳолати баста сана мехоҳад.
-
-Пул бо Decimal / PostgreSQL NUMERIC нигоҳ дошта мешавад. Ҳамаи маблағҳо дар интерфейс бо ду рақами касрӣ. Номи маблағ/асъор барои ҳамин MVP сомонӣ қабул шудааст; multcurrency нест.
-
-FK-ҳои ҳисобдорӣ PROTECT доранд. Маҳдудияти синф ва маблағ дар DB низ ҳаст; мувофиқати мактаб/забон/нашри алтернатива дар services санҷида мешавад. Дар DB маҳдудияти 5–15 KitItem нест: он қоидаи command-и create_kit аст.
-
-Stock танҳо бақияи дастрас ва осебдидаро нигоҳ медорад. Додашуда аз LoanLine, ҳаракат аз StockMovement гирифта мешавад. Тасҳеҳи бақия ва сверкаи ҷисмонии анбор API-и ҷудогонаи оянда мехоҳанд.

@@ -1,71 +1,32 @@
-# API v1
+# REST API · KitobYor 1.0
 
-Base: `/api/v1/`. JSON. Login дар `/login/` бо form ва CSRF; session cookie-и браузер. Барои POST API header-и `X-CSRFToken` ва session cookie лозим. Register ва school_id дар payload нест.
+Prefix /api/v1/. SessionAuthentication + CSRF; ҳамаи маълумот аз мактаби login. Pagination барои list. POST role-ро санҷида, query-ро бо мактаб маҳдуд мекунад. Ошибка: 400 validation, 403 permission/CSRF, 404 scoped ID, 409 stock/price/idempotency conflict.
 
-| Method | Path | Вазифа |
-|---|---|---|
-| GET, POST | students/ | Ҷустуҷӯ `q`, филтр `grade`, эҷоди хонанда |
-| GET, POST | editions/ | Нашр ва бақия; ҷустуҷӯ `q`; иловаи каталог |
-| POST | editions/{id}/intake/ | quantity, note |
-| POST | editions/{id}/tariff/ | fee, note, approved; admin/accountant |
-| GET, POST | kits/ | Маҷмӯаҳо; 5–15 items |
-| GET | issues/preview/?student_id=1&kit_id=1 | Нашрҳои пешниҳодшуда ва estimated_total |
-| POST | issues/confirm/ | Додани интихобҳои тасдиқшуда |
-| GET | invoices/ | Ҳисобҳо бо хонанда, китобҳо, total/paid/balance |
-| GET | invoices/{id}/ | Як ҳисоб |
-| POST | invoices/{id}/payments/ | Пардохти дастӣ; admin/accountant |
-| POST | loans/{id}/returns/ | Баргардонӣ/осеб/гумшавӣ |
+| Route | Амал |
+|---|---|
+| GET/POST students/ | Хонандагон; code ихтиёрӣ барои compatibility, UI худкор |
+| GET/POST catalog/ | Анбор; title, grade, year, quantity, fee |
+| POST catalog/{edition_id}/ | Иваз кардани анбор; quantity бақияи дастрас мешавад |
+| POST catalog/issues/confirm/ | Додан бе маҷмӯа |
+| GET invoices/ | Иҷораҳо; payment_number дар ҷавоб |
+| GET invoices/{id}/ | Ҷузъиёти иҷора ва китобҳо |
+| POST invoices/{id}/paid/ | Тасдиқи пурраи нақдӣ, admin/accountant |
+| GET/POST kits/ | Маҷмӯаҳои ихтиёрӣ |
 
-Рӯйхатҳо pagination доранд: `count`, `next`, `previous`, `results`; 50 сатр дар саҳифа.
-
-## Эҷоди хонанда
+Сохтани китоб:
 
 ```json
-{"code":"S001","full_name":"Хонандаи намунавӣ","grade":5,"group":"А","address":"Суроғаи намунавӣ","language":"Тоҷикӣ"}
+{"title":"Математика","grade":10,"year":2025,"quantity":100,"fee":"5.00"}
 ```
 
-## Эҷоди нашр
+Тасдиқи иҷора:
 
 ```json
-{"book_code":"B001","title":"Математика","grade":5,"language":"Тоҷикӣ","edition_code":"2024-1","year":2024,"publisher":"","isbn":""}
+{"student_id":1,"edition_ids":[1,2],"expected_total":"10.00","token":"ff82562a-e577-4868-9bac-398173ac4f39"}
 ```
 
-Book бо book_code-и мавҷуда танҳо вақте истифода мешавад, ки title/grade/language мувофиқ бошад. Бақияи нашри нав сифр аст; баъд intake ва тарифи тасдиқшуда лозим.
+Token-и нав барои амали нав; token-и пешина танҳо барои retry-и ҳамон payload. Тариф/бақия аз нав санҷида мешаванд. payment_number истиноди маҳаллӣ аст, reference UUID барои compatibility нигоҳ дошта шудааст. endpoint-и банк callback ва SMS send ҳоло вуҷуд надоранд.
 
-## Эҷоди маҷмӯа
+Route-ҳои editions/, editions/{id}/intake/, editions/{id}/tariff/, issues/preview/, issues/confirm/ ва invoices/{id}/payments/ барои compatibility-и 0.2 бо ваколатҳои пешина нигоҳ дошта шудаанд. UI-и 1.0 аз ҷараёни нави catalog истифода мекунад. Endpoint-и баргардонӣ хориҷ шудааст ва 404 медиҳад.
 
-```json
-{"name":"Синфи 5","grade":5,"language":"Тоҷикӣ","items":[{"preferred_id":1,"alternative_ids":[2]},{"preferred_id":3},{"preferred_id":4},{"preferred_id":5},{"preferred_id":6}]}
-```
-
-ID-ҳо намунаанд; аз базаи воқеӣ гирифта шаванд.
-
-## Тасдиқи қисман додан
-
-```json
-{"student_id":1,"kit_id":1,"choices":[{"kit_item_id":1,"edition_id":1}],"token":"ff82562a-e577-4868-9bac-398173ac4f39","expected_total":"2.00","allow_partial":true}
-```
-
-Маблағи 2.00 танҳо намунаи API аст, тарифи расмӣ нест. UUID-и нав барои ҳар амали нав; барои retry ҳамон UUID ва payload. expected_total аз пешнамоиш гирифта шавад. Ҷавоб Invoice бо lines ва reference.
-
-## Пардохт ва баргардонӣ
-
-```json
-{"amount":"2.00","receipt":"DOC-001","note":"Асоси ҳуҷҷат","token":"f17b9b1e-2c6a-4e08-b290-7786065d1274"}
-```
-
-```json
-{"lines":[{"line_id":1,"state":"returned"}]}
-```
-
-Ҳолатҳо: returned, damaged, lost. Иваз кардани ҳолати аллакай баста рад мешавад; такрори ҳамон баргардонӣ анборро дубора зиёд намекунад.
-
-## Хатогиҳо
-
-Domain errors: `{"code":"stock_changed","detail":"..."}`. 400 маълумоти нодуруст; 403 дастрасӣ/CSRF; 404 маълумоти мактаби дигар ё ID-и номавҷуд; 409 нарх/бақия/такрор. Хатогиҳои serializer бо номи майдон бармегарданд. Барои корбари невурудшуда SessionAuthentication метавонад 403 баргардонад.
-
-## Барои frontend
-
-Як origin барои UI ва API интихоб шудааст: CORS ва JWT ҳоло лозим нестанд. Пардохт ё дода шудани китобро аз рӯи танҳо UI-state ҳисоб накунед; натиҷаи серверро қабул кунед. Агар ҷавоби confirm гум шавад, payload ва token-ро бетағйир retry кунед. 409 → пешнамоиши нав → тасдиқи корбар → token-и нав.
-
-UI-и корӣ дар /students/, /inventory/, /kits/, /issue/, /invoices/, /returns/ ва /reports/ аст. API-и JSON нигоҳ дошта шудааст; корбари оддӣ аз templates истифода мекунад. Импорт ҳоло тавассути UI аст.
+Импорт аз UI бо session preview/commit иҷро мешавад. CSV-и reports/export/ маблағҳоро як бор барои ҳар invoice медиҳад; ?kind=stock анбор аст.

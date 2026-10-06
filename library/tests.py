@@ -98,7 +98,7 @@ class DomainTests(TestCase):
         self.assertContains(self.client.get('/login/'),'KitobYor')
         for _ in range(5):self.client.post('/login/',{'username':'unknown','password':'wrong'})
         self.assertEqual(self.client.post('/login/',{'username':'unknown','password':'wrong'}).status_code,429)
-        self.client.force_login(self.user);self.assertContains(self.client.get('/'),'5–15')
+        self.client.force_login(self.user);self.assertContains(self.client.get('/'),'Раванди содаи иҷора')
     def test_cross_school_api_mutation(self):
         other=School.objects.create(name='Дигар',code='OTHER')
         book=Book.objects.create(school=other,code='1',title='Other',grade=5)
@@ -107,7 +107,7 @@ class DomainTests(TestCase):
         self.assertEqual(client.post(f'/api/v1/editions/{ed.pk}/intake/',{'quantity':1,'note':'Test'},format='json').status_code,404)
         self.assertEqual(Stock.objects.get(edition=ed).available,0)
 
-@skipUnless(connection.vendor=='postgresql','Requires PostgreSQL row locks; run CI or Docker test command')
+@skipUnless(connection.vendor=='postgresql','Requires PostgreSQL row locks; run CI or native PostgreSQL tests')
 class PostgreSQLConcurrencyTests(TransactionTestCase):
     def setUp(self):fixture(self)
     def test_last_copy_cannot_be_issued_twice(self):
@@ -118,6 +118,21 @@ class PostgreSQLConcurrencyTests(TransactionTestCase):
             close_old_connections()
             try:
                 s.confirm_issue(user=get_user_model().objects.get(pk=self.user.pk),school=School.objects.get(pk=self.school.pk),student_id=student_id,kit_id=self.kit.pk,choices=self.choices[:1],token=uuid4(),expected_total=Decimal('2.00'),allow_partial=True)
+                return 'ok'
+            except s.DomainError as exc:return exc.code
+            finally:close_old_connections()
+        with ThreadPoolExecutor(max_workers=2) as pool:results=list(pool.map(issue,[self.student.pk,other.pk]))
+        self.assertCountEqual(results,['ok','stock_changed'])
+        self.assertEqual(Stock.objects.get(edition=self.items[0].preferred).available,0)
+        self.assertEqual(Invoice.objects.count(),1)
+    def test_catalog_last_copy_cannot_be_issued_twice(self):
+        Stock.objects.filter(edition=self.items[0].preferred).update(available=1)
+        other=Student.objects.create(school=self.school,code='C002',full_name='Дуюм',address='Test')
+        Enrollment.objects.create(student=other,academic_year=self.school.academic_year,grade=5,group='B')
+        def issue(student_id):
+            close_old_connections()
+            try:
+                s.confirm_catalog_issue(user=get_user_model().objects.get(pk=self.user.pk),school=School.objects.get(pk=self.school.pk),student_id=student_id,edition_ids=[self.items[0].preferred_id],token=uuid4(),expected_total=Decimal('2.00'))
                 return 'ok'
             except s.DomainError as exc:return exc.code
             finally:close_old_connections()

@@ -13,13 +13,13 @@ from . import services, importing
 class WorkspaceTests(TestCase):
     def setUp(self):fixture(self);self.client.force_login(self.user)
     def test_all_workspace_pages_render(self):
-        for name in ['dashboard','students','inventory','kits','issue','invoices','returns','reports','student_new','catalog_new','kit_new','student_import']:
+        for name in ['dashboard','students','inventory','kits','issue','invoices','reports','student_new','catalog_new','kit_new','student_import']:
             with self.subTest(name=name):self.assertEqual(self.client.get(reverse(name)).status_code,200)
         self.assertEqual(self.client.get(reverse('edition_detail',args=[self.items[0].preferred_id])).status_code,200)
     def test_student_add_edit(self):
         data={'code':'NEW','full_name':'Хонандаи нав','address':'Суроға','grade':5,'group':'Б','language':'Тоҷикӣ'}
         self.assertRedirects(self.client.post(reverse('student_new'),data),reverse('students'))
-        student=Student.objects.get(code='NEW');data['full_name']='Номи таҳриршуда'
+        student=Student.objects.get(full_name='Хонандаи нав');self.assertTrue(student.code.startswith('S-'));data['full_name']='Номи таҳриршуда'
         self.assertRedirects(self.client.post(reverse('student_edit',args=[student.pk]),data),reverse('students'))
         student.refresh_from_db();self.assertEqual(student.full_name,'Номи таҳриршуда')
         self.assertEqual(Enrollment.objects.filter(student=student).count(),1)
@@ -45,28 +45,26 @@ class WorkspaceTests(TestCase):
         self.assertFalse(ImportBatch.objects.exists())
     def test_import_xlsx_and_paste(self):
         from openpyxl import Workbook
-        wb=Workbook();ws=wb.active;ws.append(importing.HEADERS);ws.append(['X01','Хонанда',5,'А','Test','Тоҷикӣ']);stream=io.BytesIO();wb.save(stream)
+        wb=Workbook();ws=wb.active;ws.append(importing.HEADERS);ws.append(['Хонанда',5,'A','Test','Намоянда','+992000000000']);stream=io.BytesIO();wb.save(stream)
         file=SimpleUploadedFile('students.xlsx',stream.getvalue())
         rows,digest=importing.parse_upload(file);self.assertEqual(rows[0]['grade'],'5')
         checked,valid=importing.validate_rows(rows,self.school);self.assertEqual(len(valid),1)
-    def test_issue_payment_return_html_flow(self):
-        response=self.client.get(reverse('issue'),{'student':self.student.pk});self.assertContains(response,'Тасдиқи додани китоб')
-        data={'student_id':self.student.pk,'token':str(uuid4()),'expected_total':'10.00'}
-        data.update({f'choice_{c["kit_item_id"]}':c['edition_id'] for c in self.choices})
+    def test_catalog_issue_cash_paid_html_flow(self):
+        response=self.client.get(reverse('issue'),{'student':self.student.pk});self.assertContains(response,'Тасдиқ ва сохтани рақами пардохт')
+        data={'student_id':self.student.pk,'token':str(uuid4()),'expected_total':'10.00','editions':[i.preferred_id for i in self.items]}
         response=self.client.post(reverse('issue'),data);self.assertEqual(response.status_code,302)
         inv=Invoice.objects.get();self.assertEqual(response.url,reverse('invoice_detail',args=[inv.pk]))
-        response=self.client.post(response.url,{'action':'payment','amount':'4.00','receipt':'UI-1','note':'Test','token':str(uuid4())});self.assertEqual(response.status_code,302)
-        inv.refresh_from_db();self.assertEqual(inv.balance,Decimal('6.00'))
-        line=inv.loan.lines.first()
-        response=self.client.post(reverse('invoice_detail',args=[inv.pk]),{'action':'return',f'return_{line.pk}':'on',f'state_{line.pk}':'returned'})
-        self.assertEqual(response.status_code,302);line.refresh_from_db();self.assertEqual(line.state,'returned')
-        inv.refresh_from_db();self.assertEqual(inv.balance,Decimal('6.00'))
+        self.assertIsNone(inv.loan.kit_id)
+        response=self.client.post(response.url,{'action':'paid'});self.assertEqual(response.status_code,302)
+        inv.refresh_from_db();self.assertEqual(inv.balance,Decimal('0.00'))
+        self.assertEqual(self.client.get('/returns/').status_code,404)
+        self.assertContains(self.client.get(reverse('invoice_detail',args=[inv.pk])),'SMS фиристода нашудааст')
     def test_ui_role_and_tenant_protection(self):
         Membership.objects.filter(user=self.user).update(role='viewer')
         for name in ['student_new','student_import','catalog_new','kit_new','issue']:
             self.assertEqual(self.client.get(reverse(name)).status_code,403)
         response=self.client.post(reverse('edition_detail',args=[self.items[0].preferred_id]),{'action':'intake','intake-quantity':100,'intake-note':'Test'})
-        self.assertEqual(response.status_code,200);self.assertEqual(Stock.objects.get(edition=self.items[0].preferred).available,2)
+        self.assertEqual(response.status_code,403);self.assertEqual(Stock.objects.get(edition=self.items[0].preferred).available,2)
     def test_csv_formula_neutralization(self):
         self.items[0].preferred.book.title='=HYPERLINK("bad")';self.items[0].preferred.book.save()
         response=self.client.get(reverse('export'),{'kind':'stock'})
