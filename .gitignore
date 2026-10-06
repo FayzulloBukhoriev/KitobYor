@@ -10,3 +10,6 @@ staticfiles/
 media/
 .coverage
 .DS_Store
+
+local_data/
+*.key
