@@ -28,6 +28,8 @@ class Student(models.Model):
     full_name = models.CharField(max_length=200)
     address = models.CharField(max_length=250)
     active = models.BooleanField(default=True)
+    parent_name = models.CharField(max_length=160, blank=True)
+    parent_phone = models.CharField(max_length=20, blank=True)
     class Meta:
         ordering = ['full_name','id']
         constraints = [models.UniqueConstraint(fields=['school','code'], name='student_school_code')]
@@ -103,7 +105,7 @@ class KitItem(models.Model):
 class Loan(models.Model):
     school = models.ForeignKey(School,on_delete=models.PROTECT)
     student = models.ForeignKey(Student,on_delete=models.PROTECT,related_name='loans')
-    kit = models.ForeignKey(Kit,on_delete=models.PROTECT)
+    kit = models.ForeignKey(Kit,on_delete=models.PROTECT,null=True,blank=True)
     academic_year = models.CharField(max_length=9)
     token = models.UUIDField(default=uuid.uuid4, unique=True)
     request_hash = models.CharField(max_length=64)
@@ -115,7 +117,7 @@ class LoanLine(models.Model):
     loan = models.ForeignKey(Loan,on_delete=models.PROTECT,related_name='lines')
     student = models.ForeignKey(Student,on_delete=models.PROTECT)
     edition = models.ForeignKey(Edition,on_delete=models.PROTECT)
-    kit_item = models.ForeignKey(KitItem,on_delete=models.PROTECT)
+    kit_item = models.ForeignKey(KitItem,on_delete=models.PROTECT,null=True,blank=True)
     tariff = models.ForeignKey(Tariff,on_delete=models.PROTECT)
     title_snapshot = models.CharField(max_length=180)
     year_snapshot = models.PositiveSmallIntegerField()
@@ -139,6 +141,10 @@ class Invoice(models.Model):
     def balance(self): return self.total-self.paid
     @property
     def number(self): return f'KY-{self.pk:08d}'
+    @property
+    def payment_number(self):
+        # Stable unique numeric LOCAL reference. Bank reference is assigned by a future provider.
+        return f'10{self.pk:012d}'
 
 class Payment(models.Model):
     school = models.ForeignKey(School,on_delete=models.PROTECT)
@@ -183,3 +189,13 @@ class LoginAttempt(models.Model):
     key = models.CharField(max_length=64,unique=True)
     failures = models.PositiveSmallIntegerField(default=0)
     window_start = models.DateTimeField()
+
+
+class SmsNotification(models.Model):
+    invoice = models.OneToOneField(Invoice,on_delete=models.PROTECT,related_name='sms_notification')
+    destination = models.CharField(max_length=20,blank=True)
+    body = models.TextField()
+    status = models.CharField(max_length=20,default='preview',choices=[('preview','Пешнамоиш'),('missing_phone','Рақами телефон нест'),('sent','Фиристода'),('failed','Хато')])
+    created_at = models.DateTimeField(auto_now_add=True)
+    sent_at = models.DateTimeField(null=True,blank=True)
+    provider_reference = models.CharField(max_length=160,blank=True)

@@ -66,3 +66,23 @@ class Returns(APIView):
     def post(self,request,pk):
         obj=services.close_lines(user=request.user,school=request.school,loan_id=pk,**validated(ReturnWrite,request.data))
         return Response({'loan_id':obj.pk,'lines':LineRead(obj.lines.all(),many=True).data,'invoice_balance':str(obj.invoice.balance)})
+
+class Catalog(generics.ListAPIView):
+    serializer_class=EditionRead
+    def get_queryset(self):return Edition.objects.filter(book__school=self.request.school).select_related('book','stock').prefetch_related('tariffs')
+    def post(self,request):
+        obj=services.save_inventory(user=request.user,school=request.school,**validated(InventoryWrite,request.data))
+        return Response(EditionRead(obj).data,status=201)
+class CatalogEdit(APIView):
+    def post(self,request,pk):
+        obj=services.save_inventory(user=request.user,school=request.school,edition_id=pk,**validated(InventoryWrite,request.data))
+        return Response(EditionRead(obj).data)
+class CatalogIssueConfirm(APIView):
+    def post(self,request):
+        inv=services.confirm_catalog_issue(user=request.user,school=request.school,**validated(CatalogIssueWrite,request.data))
+        return Response(InvoiceRead(inv).data)
+class CashPaid(APIView):
+    write_roles=('admin','accountant')
+    def post(self,request,pk):
+        inv=services.mark_cash_paid(user=request.user,school=request.school,invoice_id=pk)
+        return Response(InvoiceRead(inv).data)

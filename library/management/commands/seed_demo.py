@@ -34,11 +34,11 @@ class Command(BaseCommand):
             for n,title in enumerate(titles,1):
                 book,_=Book.objects.get_or_create(school=school,code=f'D{grade}-{n}',defaults={'title':title,'grade':grade,'language':'Тоҷикӣ'})
                 editions=[]
-                for year,fee in ((2024,Decimal('3.50')),(2020,Decimal('2.00'))):
+                for year,fee in ((2025,Decimal('3.50')),(2020,Decimal('2.00'))):
                     ed,created=Edition.objects.get_or_create(book=book,code=f'{year}-DEMO',defaults={'year':year,'publisher':'Нашриёти намунавӣ'})
                     Stock.objects.get_or_create(edition=ed)
                     if created:
-                        services.intake(user=user,school=school,edition_id=ed.pk,quantity=18 if year==2024 else 8,note='DEMO: воридшавии намунавӣ')
+                        services.intake(user=user,school=school,edition_id=ed.pk,quantity=18 if year==2025 else 8,note='DEMO: воридшавии намунавӣ')
                         services.set_tariff(user=user,school=school,edition_id=ed.pk,fee=fee,note='DEMO: нархи сохта барои намоиш, тарифи расмӣ нест',approved=True)
                     editions.append(ed)
                 items.append({'preferred_id':editions[0].pk,'alternative_ids':[editions[1].pk]})
@@ -47,11 +47,13 @@ class Command(BaseCommand):
             for index,name in enumerate(names,1):
                 code=f'D{grade}-{index:03}'
                 student=Student.objects.filter(school=school,code=code).first()
-                if not student:student=services.add_student(user=user,school=school,code=code,full_name=f'{name} · синфи {grade}',address='Суроғаи сохта барои намоиш',grade=grade,group='А' if index<=5 else 'Б',language='Тоҷикӣ')
+                if not student:student=services.add_student(user=user,school=school,code=code,full_name=f'{name} · синфи {grade}',address='Суроғаи сохта барои намоиш',grade=grade,group='A' if index<=5 else 'B',language='Тоҷикӣ',parent_name='Намояндаи намунавӣ',parent_phone='+992000000000')
                 if index<=3 and not student.loans.exists():
                     preview=services.preview_issue(school,student.pk,kit.pk)
                     choices=[{'kit_item_id':r['kit_item_id'],'edition_id':r['suggested']['edition_id']} for r in preview['items'] if r['suggested']]
                     inv=services.confirm_issue(user=user,school=school,student_id=student.pk,kit_id=kit.pk,choices=choices,token=uuid4(),expected_total=Decimal(preview['estimated_total']),allow_partial=len(choices)<len(items))
                     if index==1:services.record_payment(user=user,school=school,invoice_id=inv.pk,amount=inv.total,receipt=f'DEMO-{grade}-1',note='DEMO: пардохти намунавӣ',token=uuid4())
                     if index==2:services.record_payment(user=user,school=school,invoice_id=inv.pk,amount=Decimal('10.00'),receipt=f'DEMO-{grade}-2',note='DEMO: пардохти қисман',token=uuid4())
+        from library.notifications import prepare_sms
+        for invoice in Invoice.objects.filter(school=school):prepare_sms(invoice)
         self.stdout.write(self.style.SUCCESS('DEMO ready: 30 students, 36 editions, 3 kits. Existing data preserved.'))

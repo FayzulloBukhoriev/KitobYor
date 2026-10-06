@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views
 urlpatterns=[
+ path('catalog/',views.Catalog.as_view()),
+ path('catalog/<int:pk>/',views.CatalogEdit.as_view()),
+ path('catalog/issues/confirm/',views.CatalogIssueConfirm.as_view()),
+ path('invoices/<int:pk>/paid/',views.CashPaid.as_view()),
  path('students/',views.Students.as_view()),
  path('editions/',views.Editions.as_view()),
  path('editions/<int:pk>/intake/',views.StockIntake.as_view()),
@@ -11,5 +15,4 @@ urlpatterns=[
  path('invoices/',views.Invoices.as_view()),
  path('invoices/<int:pk>/',views.InvoiceDetail.as_view()),
  path('invoices/<int:pk>/payments/',views.Payments.as_view()),
- path('loans/<int:pk>/returns/',views.Returns.as_view()),
 ]

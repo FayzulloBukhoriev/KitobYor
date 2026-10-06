@@ -4,14 +4,16 @@ from library.models import Student,Edition,Kit,Invoice,Payment,LoanLine
 
 class StudentRead(serializers.ModelSerializer):
     enrollments=serializers.SerializerMethodField()
-    class Meta: model=Student;fields=['id','code','full_name','address','active','enrollments']
+    class Meta: model=Student;fields=['id','code','full_name','address','parent_name','parent_phone','active','enrollments']
     def get_enrollments(self,obj):
         return [{'academic_year':e.academic_year,'grade':e.grade,'group':e.group,'language':e.language} for e in obj.enrollments.all()]
 
 class StudentWrite(serializers.Serializer):
-    code=serializers.CharField(max_length=40)
+    code=serializers.CharField(max_length=40,required=False)
     full_name=serializers.CharField(max_length=200)
     address=serializers.CharField(max_length=250)
+    parent_name=serializers.CharField(max_length=160,required=False,allow_blank=True)
+    parent_phone=serializers.CharField(max_length=20,required=False,allow_blank=True)
     grade=serializers.IntegerField(min_value=1,max_value=11)
     group=serializers.CharField(max_length=8)
     language=serializers.CharField(max_length=40,default='Тоҷикӣ')
@@ -89,6 +91,19 @@ class InvoiceRead(serializers.ModelSerializer):
     lines=LineRead(source='loan.lines',many=True)
     balance=serializers.DecimalField(max_digits=12,decimal_places=2,read_only=True)
     number=serializers.CharField(read_only=True)
-    class Meta:model=Invoice;fields=['id','number','reference','loan_id','student_id','full_name','total','paid','balance','created_at','lines']
+    payment_number=serializers.CharField(read_only=True)
+    class Meta:model=Invoice;fields=['id','number','payment_number','reference','loan_id','student_id','full_name','total','paid','balance','created_at','lines']
 class PaymentRead(serializers.ModelSerializer):
     class Meta:model=Payment;fields=['id','invoice_id','amount','receipt','note','created_at']
+
+class InventoryWrite(serializers.Serializer):
+    title=serializers.CharField(max_length=180)
+    grade=serializers.IntegerField(min_value=1,max_value=11)
+    year=serializers.IntegerField(min_value=1900,max_value=2100)
+    quantity=serializers.IntegerField(min_value=0,max_value=100000)
+    fee=serializers.DecimalField(max_digits=10,decimal_places=2,min_value=0)
+class CatalogIssueWrite(serializers.Serializer):
+    student_id=serializers.IntegerField(min_value=1)
+    edition_ids=serializers.ListField(child=serializers.IntegerField(min_value=1),min_length=1,max_length=60)
+    expected_total=serializers.DecimalField(max_digits=12,decimal_places=2,min_value=0)
+    token=serializers.UUIDField()

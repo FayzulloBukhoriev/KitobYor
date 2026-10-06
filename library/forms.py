@@ -5,23 +5,34 @@ from .models import Edition, Student
 GRADES=[('', 'Ҳамаи синфҳо')]+[(n, f'Синфи {n}') for n in range(1,12)]
 LANGUAGES=[('Тоҷикӣ','Тоҷикӣ'),('Русӣ','Русӣ'),('Ӯзбекӣ','Ӯзбекӣ')]
 
+GROUPS=[(v,v) for v in 'ABCDE']
+
+def normalize_group(value):
+    return {'А':'A','Б':'B','В':'C','Г':'D','Д':'E','С':'C','Е':'E'}.get(str(value).strip().upper(),str(value).strip().upper())
+
+class GroupField(forms.ChoiceField):
+    def to_python(self,value):return normalize_group(value)
+
 class StudentForm(forms.Form):
-    code=forms.CharField(label='Рамзи хонанда',max_length=40)
-    full_name=forms.CharField(label='Ному насаб',max_length=200)
+    full_name=forms.CharField(label='Ному насаби хонанда',max_length=200)
     grade=forms.TypedChoiceField(label='Синф',choices=GRADES[1:],coerce=int)
-    group=forms.CharField(label='Гурӯҳ',max_length=8,initial='А')
-    language=forms.ChoiceField(label='Забони таҳсил',choices=LANGUAGES)
+    group=GroupField(label='Гурӯҳ',choices=GROUPS,initial='A')
+    language=forms.ChoiceField(label='Забони таҳсил',choices=LANGUAGES,required=False,initial='Тоҷикӣ')
     address=forms.CharField(label='Суроға',max_length=250)
+    parent_name=forms.CharField(label='Номи падар ё модар',max_length=160,required=False)
+    parent_phone=forms.CharField(label='Телефони падар ё модар',max_length=20,required=False,help_text='Барои SMS: +992 ва 9 рақам. Ҳоло танҳо пешнамоиши паём омода мешавад.')
+    def clean_language(self):return self.cleaned_data.get('language') or 'Тоҷикӣ'
+    def clean_parent_phone(self):
+        from .validators import normalize_parent_phone
+        return normalize_parent_phone(self.cleaned_data.get('parent_phone',''))
 
 class CatalogForm(forms.Form):
-    book_code=forms.CharField(label='Рамзи китоб',max_length=60,help_text='Барои нашри нави ҳамон китоб рамзи мавҷударо истифода баред.')
     title=forms.CharField(label='Номи китоб',max_length=180)
-    grade=forms.TypedChoiceField(label='Синф',choices=GRADES[1:],coerce=int)
-    language=forms.ChoiceField(label='Забон',choices=LANGUAGES)
-    edition_code=forms.CharField(label='Рамзи нашр',max_length=60)
-    year=forms.IntegerField(label='Соли нашр',min_value=1900,max_value=2100,initial=2024)
-    publisher=forms.CharField(label='Нашриёт',max_length=120,required=False)
-    isbn=forms.CharField(label='ISBN',max_length=20,required=False)
+    grade=forms.TypedChoiceField(label='Барои кадом синф',choices=GRADES[1:],coerce=int)
+    year=forms.IntegerField(label='Соли нашр',min_value=1900,max_value=2100,initial=2025)
+    quantity=forms.IntegerField(label='Шумораи нусхаҳо дар анбор',min_value=0,max_value=100000)
+    fee=forms.DecimalField(label='Нархи иҷораи як китоб · сомонӣ',min_value=0,max_digits=10,decimal_places=2)
+    def clean_title(self):return ' '.join(self.cleaned_data['title'].split())
 
 class IntakeForm(forms.Form):
     quantity=forms.IntegerField(label='Шумораи нусхаҳои воридшуда',min_value=1,max_value=100000)
@@ -67,7 +78,7 @@ class PaymentForm(forms.Form):
 
 class ImportForm(forms.Form):
     file=forms.FileField(label='Файли CSV ё Excel (.xlsx)',required=False)
-    pasted=forms.CharField(label='Ё рӯйхатро аз Excel гузоред',required=False,widget=forms.Textarea(attrs={'rows':7,'placeholder':'code\tfull_name\tgrade\tgroup\taddress\tlanguage'}))
+    pasted=forms.CharField(label='Ё рӯйхатро аз Excel гузоред',required=False,widget=forms.Textarea(attrs={'rows':7,'placeholder':'full_name\tgrade\tgroup\taddress\tparent_name\tparent_phone'}))
     def clean(self):
         data=super().clean()
         if bool(data.get('file'))==bool(data.get('pasted')):raise forms.ValidationError('Як роҳро интихоб кунед: файл ё гузоштани рӯйхат.')

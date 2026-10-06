@@ -11,7 +11,7 @@ from .forms import StudentForm
 from .models import Student, ImportBatch
 from . import services
 
-HEADERS=['code','full_name','grade','group','address','language']
+HEADERS=['full_name','grade','group','address','parent_name','parent_phone']
 MAX_ROWS=500
 
 def parse_upload(file=None,pasted=''):
@@ -26,9 +26,9 @@ def parse_upload(file=None,pasted=''):
             sheet=wb.active
             rows=[]
             if (sheet.max_row or 0)>MAX_ROWS+1:raise services.DomainError('Дар Excel то 500 сатр иҷозат аст; сатрҳои холии зиёдатиро тоза кунед.')
-            for row in sheet.iter_rows(max_col=min(sheet.max_column or 7,7),values_only=True):
+            for row in sheet.iter_rows(max_col=min(sheet.max_column or 8,8),values_only=True):
                 if len(rows)>MAX_ROWS:raise services.DomainError('Дар як импорт то 500 хонанда иҷозат аст.')
-                rows.append(list(row[:7]))
+                rows.append(list(row[:8]))
             wb.close()
         except (BadZipFile,ValueError,KeyError,OSError,InvalidFileException,ParseError) as exc:raise services.DomainError('Файли Excel хонда нашуд.') from exc
     else:
@@ -40,20 +40,34 @@ def parse_upload(file=None,pasted=''):
         rows=list(csv.reader(io.StringIO(text),delimiter=delimiter))
     if not rows:raise services.DomainError('Рӯйхат холӣ аст.')
     headers=[str(v or '').strip().lower() for v in rows[0]]
-    if len(set(headers))!=len(headers) or set(headers)!=set(HEADERS):
-        raise services.DomainError('Сутунҳо бояд code, full_name, grade, group, address, language бошанд. Намунаро боргирӣ кунед.')
+    allowed=set(HEADERS)|{'language','code'}
+    if len(set(headers))!=len(headers) or not {'full_name','grade','group','address'}.issubset(headers) or not set(headers).issubset(allowed):
+        raise services.DomainError('Сутунҳои full_name, grade, group, address лозиманд; parent_name ва parent_phone ихтиёрӣ. Намунаро боргирӣ кунед.')
     body=[r for r in rows[1:] if any(v is not None and str(v).strip() for v in r)]
     if not body or len(body)>MAX_ROWS:raise services.DomainError('Рӯйхат бояд 1–500 хонанда дошта бошад.')
     return [{h:str(r[i] if i<len(r) and r[i] is not None else '').strip() for i,h in enumerate(headers)} for r in body],hashlib.sha256(raw).hexdigest()
 
 def validate_rows(rows,school):
-    seen=set();existing=set(Student.objects.filter(school=school,code__in=[r.get('code','') for r in rows]).values_list('code',flat=True));result=[];valid=[]
+    seen=set();profiles=set();existing=set(Student.objects.filter(school=school,code__in=[r.get('code','') for r in rows]).values_list('code',flat=True));result=[];valid=[]
+    def signature(data):
+        return tuple(str(data.get(k,'')).strip().casefold() for k in ['full_name','grade','group','address','parent_phone'])
+    from .forms import normalize_group
+    existing_profiles=set()
+    for student in Student.objects.filter(school=school).prefetch_related('enrollments'):
+        for en in student.enrollments.all():
+            if en.academic_year==school.academic_year:
+                existing_profiles.add(signature(dict(full_name=student.full_name,grade=en.grade,group=normalize_group(en.group),address=student.address,parent_phone=student.parent_phone)))
     for number,row in enumerate(rows,2):
         form=StudentForm(row);ok=form.is_valid();errors=[]
         if not ok:errors=[f'{form.fields[k].label}: {", ".join(v)}' if k in form.fields else ', '.join(v) for k,v in form.errors.items()]
         code=row.get('code','')
-        if code in seen or code in existing:errors.append('Рамз такрорӣ аст. Ин версия танҳо хонандаи нав илова мекунад.')
-        seen.add(code)
+        if code and (code in seen or code in existing):errors.append('Ин сатр аллакай ворид шудааст.')
+        if code:seen.add(code)
+        profile=signature(form.cleaned_data if ok else row)
+        if profile in profiles:errors.append('Сатри хонанда дар файл такрор шудааст.')
+        if profile in existing_profiles:errors.append('Хонанда бо ҳамин маълумот аллакай сабт шудааст.')
+        profiles.add(profile)
+        if ok and code:form.cleaned_data['code']=code
         result.append({'number':number,'row':row,'errors':errors})
         if not errors:valid.append(form.cleaned_data)
     return result,valid
