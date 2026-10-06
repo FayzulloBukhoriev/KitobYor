@@ -120,4 +120,4 @@ python manage.py test
 - Дизайни кӯҳна дар браузер: Ctrl+F5.
 - SMS preview: DEMO/preview ҳеҷ SMS намефиристад. Реҷаи gsm ва мактаби воқеӣ лозиманд.
 
-Барои идома docs/PROGRESS.md ва docs/CONTINUE.md-ро хонед. Таърихи тағйирот дар commit-ҳои Git нигоҳ дошта мешавад.
+Барои саҳмгузорӣ [CONTRIBUTING.md](../CONTRIBUTING.md)-ро хонед. Таърихи тағйирот дар commit-ҳои Git нигоҳ дошта мешавад.

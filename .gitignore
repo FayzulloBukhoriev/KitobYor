@@ -1,19 +1,45 @@
-.venv/
+# Local configuration and secrets
 .env
+.env.*
+!.env.example
 .dev.env
-*.sqlite3
-*.sqlite3-*
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Python environments and generated files
+.venv/
+venv/
+env/
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Runtime data and generated assets
+*.sqlite3
+*.sqlite3-*
+local_data/
 staticfiles/
 media/
-.coverage
-.DS_Store
-
-local_data/
-*.key
-
 backups/
 *.dump
 *.part
+*.log
+
+# Local delivery archives and editor state
+*.zip
+*.bundle
+output/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

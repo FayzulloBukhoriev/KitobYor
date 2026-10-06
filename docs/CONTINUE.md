@@ -1,3 +1,0 @@
-# Continue development
-
-Read AGENTS.md, README.md, docs/PROGRESS.md and docs/VALIDATION.md first. Source of truth: models.py and three additive migrations. Do not replace existing migrations or reset user data. Each school query must be scoped; money uses Decimal, snapshots and atomic transactions. Do not resend uncertain SMS automatically. Do not reintroduce language/code inputs or returns UI. Native preview: python test.py runserver. Run regression suite before changing accounting or authorization. User will upload this release to GitHub themselves; later changes can use the authorized repository after checking its current state.
