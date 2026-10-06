@@ -1,155 +1,123 @@
-# KitobYor · версияи 1.0
+# KitobYor 2.0
 
-**Frontend + backend, бе Docker.** Django, Django REST Framework, HTML/CSS/JavaScript. PostgreSQL барои истифодаи воқеӣ; SQLite танҳо дар режими равшани local demo.
+Китобхонаи рақамии мактаб: Django 5.2, Django REST Framework 3.17, PostgreSQL, frontend-и HTML/CSS/JavaScript бо шрифти маҳаллии Noto Sans ва ҳарфҳои тоҷикӣ. Backend ва frontend дар ҳамин лоиҳа мебошанд; Node build лозим нест.
 
-## Чӣ омода аст
+**Оғози маҳаллӣ:** `python test.py runserver`.
+**Deployment:** Dockerfile, compose.yaml, PostgreSQL, Gunicorn, Caddy/HTTPS ва SMS worker.
+**SMS бе API:** драйвери модеми GSM бо SIM-корт. Барои фиристодан таҷҳизоти воқеӣ ва worker лозим аст. Demo танҳо пешнамоиш мекунад. Рақами пардохт ҳоло дохилии KitobYor мебошад, ба бонк/Госуслуги пайваст нест.
 
-Login бе register; нақшҳо ва ҷудоии мактабҳо; пештахта; хонандагон бо рамзи худкор ва гурӯҳи A–E; импорти CSV/Excel/paste; анбор бо ном, синф, соли нашр, шумора ва нархи иҷора; таҳрири анбор; интихоби китобҳои синфи хонанда бо галочка; нашрҳои солҳои гуногун бо нархи ҷудо; ҷамъбасти зиндаи маблағ; тасдиқи атомии иҷора; рақами дохилии пардохт; пешнамоиши SMS; тугмаи «Пардохт шуд» барои маблағи нақдӣ; чоп ва ҳисоботи CSV. Маҷмӯаҳо ихтиёрӣ ҳастанд. Бахши баргардонӣ аз интерфейс ва API хориҷ шудааст.
+## 1. Дар компютери худ бинед
 
-**API-и бонк ва SMS ҳоло пайваст нестанд.** Рақами 14-рақама истиноди дохилии KitobYor аст: онро ҳоло дар бонк/Госуслуги пардохт кардан мумкин нест. SMS сабт мешавад, вале фиристода намешавад. Ҳолати нақдӣ танҳо масъули дорои ваколат тасдиқ мекунад.
+Python 3.11+ насб бошад; 3.12 тавсия мешавад. ZIP → Extract All → VS Code → Open Folder → KitobYor. Ҷузвдоне бояд кушода бошад, ки test.py ва manage.py дорад.
 
-## Оғози зуд дар Windows / VS Code
-
-1. ZIP-ро Extract All кунед. Дар VS Code ҷузвдони `KitobYor`-ро кушоед, ки `manage.py` ва `run_demo.py` дорад.
-2. Python 3.12 насб бошад (3.11+ дастгирӣ мешавад). Санҷед:
-
-```powershell
-py -3 --version
-```
-
-3. Terminal → New Terminal → PowerShell. Иҷро кунед:
-
-```powershell
-py -3 run_demo.py
-```
-
-Ё `START-WINDOWS.bat`-ро ду бор пахш кунед. Launcher `.venv` месозад, dependency-ҳоро насб мекунад, migration ва demo-ро омода карда, серверро оғоз мекунад. Бори аввал интернет лозим аст.
-
-4. Дар терминал бори аввал `DEMO LOGIN: demo` ва `DEMO PASSWORD: ...` чоп мешавад. Рамзро нигоҳ доред. Рамзи default-и доимӣ дар код нест.
-5. Кушоед: http://127.0.0.1:8000/login/
-6. Барои қатъ Ctrl+C. Маълумоти demo дар `local_data/demo.sqlite3` нигоҳ дошта мешавад; ҳангоми оғози дубора нест ё overwrite намешавад.
-
-## Linux / Parrot
-
-Python 3.11+ ва модули venv лозим аст. Дар ҷузвдони лоиҳа:
+Дар Terminal:
 
 ```bash
-python3 run_demo.py
+python test.py runserver
 ```
 
-Ё:
+Агар дар Windows фармони python дастрас набошад, Python Launcher-ро истифода баред:
+
+```powershell
+py -3 test.py runserver
+```
+
+Linux/Parrot:
 
 ```bash
-bash START-LINUX.sh
+python3 test.py runserver
 ```
 
-Агар Ubuntu/Debian/Parrot хатои `ensurepip` диҳад, бастаи python3-venv-и ҳамон Python-и система лозим аст. Launcher sudo талаб намекунад.
+Launcher .venv месозад, dependency насб мекунад, migration ва demo-ро омода мекунад. Бори аввал интернет лозим аст. Login `demo` ва рамзи нави тасодуфӣ дар терминал чоп мешаванд. Онро нигоҳ доред: ҳангоми оғози дубора рамз иваз намешавад.
 
-## Агар рамзи demo фаромӯш шуд
+Кушоед: http://127.0.0.1:8000/login/
 
-Танҳо ҳисоби demo-ро нав кунед (Windows):
-
-```powershell
-.venv\Scripts\python.exe manage.py seed_demo --reset-password --settings=config.demo_settings
-```
-
-Linux:
+Барои қатъ Ctrl+C. local_data/demo.sqlite3 маълумотро нигоҳ медорад. Ин SQLite-и яккорбарӣ барои намоиш аст. Порти дигар:
 
 ```bash
-.venv/bin/python manage.py seed_demo --reset-password --settings=config.demo_settings
+python test.py runserver --port 8001
 ```
 
-Рамзи нави тасодуфӣ дар терминал чоп мешавад. Маълумот нигоҳ дошта мешавад.
-
-## Ҷараёни намоиш
-
-Дар demo-и тоза 30 хонандаи сохта, 36 нашри синфҳои 5/6/7, маҷмӯаҳои ихтиёрӣ ва 9 иҷораи намунавӣ ҳастанд. Нархҳо расмӣ нестанд.
-
-1. Хонандагон → «Иловаи хонанда»: ном, синф, гурӯҳи A–E, суроға; ном ва телефони волидайн ихтиёрӣ. Рамз ворид намекунед.
-2. Барои рӯйхати калон «Excel / CSV»: намуна → файл ё paste → пешнамоиш → тасдиқ. То 500 сатр. Маълумоти такрорӣ рад мешавад.
-3. Анбор → «Иловаи китоб»: ном, синф, сол, шумора, нархи иҷора. Ҳамон ном + синф бо соли дигар ба ҳамон китоб пайваст мешавад.
-4. «Иваз кардан» бақияи **дастрас** ва нархро иваз мекунад. Илова ба нашри мавҷуд шумораро зиёд мекунад; таҳрир шумораи дастрасро ба арзиши нав мегузорад. Нархҳои иҷораҳои пешина нигоҳ дошта мешаванд.
-5. Хонандагон → «Додани китоб»: танҳо китобҳои синфи ҳамин хонанда мебароянд. Галочка гузоред ва, агар лозим бошад, соли нашрро интихоб кунед.
-6. «Тасдиқ ва сохтани рақами пардохт» иҷораро сабт карда, бақияи анборро кам мекунад. Пешнамоиши SMS дар саҳифаи иҷора аст.
-7. Иҷораҳо → «Пардохт шуд»: қабули пурраи маблағи нақдиро қайд мекунад. Филтрҳо: пардохтшуда/пардохтнашуда, синф, гурӯҳ ва ҷустуҷӯ.
-8. Ҳисобот → CSV-и иҷораҳо ё анбор. Дар CSV-и иҷораҳо ҳар ҳисоб як сатр дорад, маблағ такрор намешавад.
-
-## PostgreSQL бе Docker
-
-1. PostgreSQL-и маҳаллиро насб/оғоз кунед.
-2. Дар pgAdmin базаи нави `kitobyor` ва корбари онро созед. Ҳуқуқи сохтани ҷадвалҳо барои migration лозим аст. Барои test корбари development ҳуқуқи сохтани test database низ мехоҳад.
-3. `.env.example`-ро ҳамчун `.env` нусха кунед. Дар Windows:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Дар `.env` secret-и тасодуфӣ, PGUSER, PGPASSWORD, PGDATABASE ва PGHOST-и дурустро гузоред. Барои localhost PGHOST=127.0.0.1, PGPORT=5432. DJANGO_DEBUG=1 танҳо барои маҳаллӣ.
-
-4. Launcher бо PostgreSQL:
-
-```powershell
-py -3 run_demo.py --postgres
-```
-
-Linux:
+Барои омодасозӣ бе оғози сервер:
 
 ```bash
-python3 run_demo.py --postgres
+python test.py runserver --setup-only
 ```
 
-Django `.env`-ро мехонад. Launcher базаи PostgreSQL-ро худкор намесозад; он бояд пешакӣ вуҷуд дошта бошад. Дар PostgreSQL низ мактаби ҷудои DEMO сохта мешавад.
-
-Барои мактаби воқеии нав, баъди migration:
-
-```powershell
-.venv\Scripts\python.exe manage.py setup_school --code SCH001 --name "Мактаби №1" --username school-admin
-```
-
-Рамз бо private prompt пурсида мешавад. Ин фармон `config.settings` ва PostgreSQL-ро истифода мекунад. Superuser барои марказӣ бо `createsuperuser` сохта мешавад; маъмури мактаб superuser нест.
-
-## Санҷишҳо
-
-Windows, unit tests-и сабук:
-
-```powershell
-.venv\Scripts\python.exe manage.py test --settings=config.test_settings
-```
-
-Linux:
+Барои PostgreSQL-и маҳаллии пешакӣ сохташуда, .env.example-ро ба .env нусха карда PGHOST/PGDATABASE/PGUSER/PGPASSWORD-ро танзим кунед:
 
 ```bash
-.venv/bin/python manage.py test --settings=config.test_settings
+python test.py runserver --postgres
 ```
 
-Бо PostgreSQL-и танзимшуда:
+Launcher-и PostgreSQL низ demo-и ҷудои DEMO месозад. Барои production фармонҳои docs/DEPLOYMENT.md-ро истифода кунед; test.py сервери development аст.
 
-```powershell
-.venv\Scripts\python.exe manage.py test
+## 2. Ҷараёни кор
+
+1. **Хонандагон:** ном, синф 1–11, гурӯҳи A–E, суроға ва тамоси волидайн. Рамзи техникӣ ва интихоби забон нестанд. Excel/CSV/paste то 500 сатр бо пешнамоиш ва санҷиши такрор.
+2. **Анбор:** ном, синф, соли нашр, шумораи дастрас ва нархи иҷора. Рамз, забон, ISBN ва нашриёт дар форма нестанд. Add ба нашри мавҷуд шумора илова мекунад; «Иваз кардан» бақияи дастрасро мегузорад. Таҳрири кӯҳна баъди тағйири анбор рад мешавад, то нусхаҳои додашуда тасодуфан дубора пайдо нашаванд.
+3. **Додани китоб:** хонанда → китобҳои синфи худаш → галочка → соли нашр/нарх → маблағи ҷамъ → тасдиқ. Маҷмӯа ихтиёрӣ мебошад.
+4. **Иҷораҳо:** рақами дохилӣ, ном, шумораи китобҳо, total, пардохтшуда/нашуда. «Пардохт шуд» танҳо admin/accountant аст ва маблағи пурраи боқимондаро нақдӣ сабт мекунад. Такрори тугма пардохти дуюм намесозад.
+5. **SMS:** паёми ҳар иҷора бо ҳолати воқеии навбат. Барои gsm worker паёмро аз SIM мефиристад. Агар ҷавоби модем гум шавад, паём худкор такроран фиристода намешавад; масъул натиҷаро месанҷад.
+6. **Ҳисобот:** ҷамъбаст, CSV-и иҷораҳо бо як сатр барои ҳар invoice ва CSV-и анбор. «Ҳисоби ман»: ивази рамз ва таърихи амалҳо барои маъмур.
+
+Бахши баргардонии китоб нест. Қабули ҷисмонӣ берун аз барнома, тасҳеҳи бақия аз тарафи масъул бо аудит анҷом мешавад. Таърихи баргардонии 0.2 дар база нигоҳ дошта мешавад.
+
+## 3. SMS бе API
+
+Шарҳи пурра: [docs/SMS.md](docs/SMS.md). Модеми USB-и SMS-capable, SIM-корти фаъол бо баланс, драйвер ва дастрасӣ ба COM/tty лозим аст. `SMS_BACKEND=gsm` ва порти модемро танзим кунед, баъд worker-ро иҷро кунед. Бе таҷҳизот паём воқеан фиристода намешавад. Мактаби DEMO ҳатто бо gsm SMS намефиристад.
+
+## 4. Docker ва сервер
+
+[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) дастури қадам ба қадам дорад. Compose: db → migrate → web → proxy; SMS бо profile-и sms. База persistent volume дорад. App user-и PostgreSQL superuser нест; пароли маъмури база ба веб-контейнер дода намешавад. Портҳои берунӣ 80/443, веб ва база дар шабакаи дохилӣ мебошанд.
+
+```bash
+docker compose up -d --build
 ```
 
-44 санҷиш гузашт; 2 санҷиши ҳамзамонии PostgreSQL дар муҳити маҳаллӣ skip шуданд. Дар GitHub CI онҳо бо PostgreSQL иҷро мешаванд. Санҷиши мигратсияи 0.2 → 1.0 бо нигоҳ доштани таърих гузашт. Chromium: login, хонанда, анбор, интихоби ду соли нашр, иҷора, пешнамоиши SMS, пардохти нақдӣ, импорт, таҳрири анбор, ҳисобот ва mobile 390px санҷида шуданд.
+Ин фармон баъди танзими .env, domain/DNS ва рамзҳои воқеӣ иҷро мешавад. Барои сохтани мактаб:
 
-## Тағйири код
+```bash
+docker compose exec web python manage.py setup_school --code SCH001 --name "Мактаби №1" --username school-admin --year 2026-2027
+```
 
-Ин версия бо `runserver --noreload` оғоз мешавад. Баъди таҳрир Ctrl+C ва launcher-ро дубора иҷро кунед. Тағйири модель migration-и нав талаб мекунад. Барои auto-reload метавонед аз Python-и `.venv` мустақим `manage.py runserver --settings=config.demo_settings` иҷро кунед.
+Рамз бо private prompt пурсида мешавад. Register-и оммавӣ нест.
 
-## Хатогиҳои маъмул
+## 5. Навсозӣ аз 1.0 / 0.2
 
-- `py is not recognized`: Python launcher насб нест; `python --version`-ро санҷед ё Python 3.12-ро бо PATH насб кунед.
-- `can't open file run_demo.py`: терминал дар ҷузвдони нодуруст аст.
-- `No module named venv` / `ensurepip`: venv-и Python-и система намерасад.
-- Порт банд: `py -3 run_demo.py --port 8001`; http://127.0.0.1:8001/login/.
-- PostgreSQL connection refused: сервер, PGHOST ва PGPORT-ро санҷед.
-- Password authentication failed: PGUSER/PGPASSWORD-и `.env`-ро санҷед; рамзро ба чат нафиристед.
-- Аз 0.2 навсозӣ: initial migration-ро тоза накунед. Migration 0002 майдонҳои навро илова мекунад ва маълумоти пешинаро нигоҳ медорад. Пешакӣ нусхаи эҳтиётии база гиред.
+Серверро қатъ кунед. База ва .env-ро backup кунед. Коди 2.0-ро ба ҷузвдони нав гузоред. Барои demo local_data-и пешинаро нусха кунед, .venv-ро аз нав созед; test.py migrations 0002 ва 0003-ро иҷро мекунад. Ҳисобҳо ва пардохтҳо нигоҳ дошта мешаванд. Migration-ҳои пешинаро ҳазф/reset накунед. Паёмҳои кӯҳнаи preview худкор фиристода намешаванд; онҳоро масъул аз бахши SMS омода мекунад.
 
-## Навсозӣ аз 0.2
+Барои базаи production, пеш аз навсозӣ:
 
-Серверро қатъ кунед. ZIP-и навро ба ҷузвдони нав кушоед. Барои demo ҷузвдони `local_data`-и пешинаро ба ҷузвдони нави лоиҳа нусха кунед; онро пешакӣ backup кунед. Барои PostgreSQL `.env`-и худро нигоҳ доред ва backup-и база гиред. Launcher худкор migration 0002-ро иҷро мекунад. Таърихи иҷора, snapshot-и нархҳо ва пардохтҳо боқӣ мемонанд; гурӯҳҳои кириллӣ ба A–E табдил меёбанд. Таърихи баргардонии пешина дар база нигоҳ дошта мешавад, бахши нави он вуҷуд надорад.
+```bash
+python deploy/backup.py
+```
 
-## Ҳолати версия ва идома
+Сипас image-и навро build карда Compose-ро оғоз кунед. Backup дар backups/ нигоҳ дошта мешавад, ба Git/Docker image намедарояд. Танҳо доштани файл санҷиши restore нест: дастури санҷиши барқарорсозӣ дар docs/DEPLOYMENT.md аст.
 
-Версияи 1.0 барои намоиши маҳаллӣ ва санҷиши ҷараёни дархостшуда омода аст. Пайвасти бонк/Госуслуги ва фиристодани SMS, rollover-и соли таҳсил ва deployment-и production марҳилаҳои баъдӣ мебошанд. `runserver` сервери production нест. SQLite танҳо намоиши яккорбарӣ аст; барои кори воқеӣ PostgreSQL лозим аст. Баргардонидани ҷисмонии китоб дар ин версия аз барнома берун анҷом мешавад; баъди санҷиши ҷисмонӣ масъул бақияи анборро таҳрир мекунад.
+## 6. Санҷишҳо ва марзҳои далел
 
-`docs/PROGRESS.md` ҳолати дақиқро нигоҳ медорад; `docs/CONTINUE.md` барои идома дар сессияи нав аст. `.env`, `.venv`, база, рақамҳои телефони QA ва маълумоти шахсӣ ба ZIP/Git дохил намешаванд. Ин дафъа ZIP дода мешавад; push ба GitHub-ро худатон анҷом медиҳед.
+```bash
+python manage.py test --settings=config.test_settings
+```
+
+Ин фармонро дар .venv-и фаъолшуда иҷро кунед. Барои PostgreSQL-и санҷишӣ ва корбари ҳуқуқи CREATEDB-дошта:
+
+```bash
+python manage.py test
+```
+
+Натиҷаҳои воқеии release дар docs/VALIDATION.md мебошанд. Наметавон иддао кард, ки тамоми хатогиҳои имконпазир нестанд: PostgreSQL concurrency, Docker runtime ва SMS бо модеми воқеӣ дар муҳити таҳвил санҷиши алоҳида мехоҳанд. Коди драйвер бо протоколи тақлидшуда санҷида шудааст; он далели расидани SMS-и воқеӣ нест. Гузариши худкори соли таҳсил, пардохти бонкӣ ва расиди delivery аз оператор ҳоло амалӣ нашудаанд.
+
+## Агар мушкил шавад
+
+- `python/py is not recognized`: Python 3.12 ва PATH/Launcher-ро насб кунед.
+- `can't open file test.py`: терминалро дар ҷузвдони KitobYor кушоед.
+- `ensurepip`/`venv`: дар Linux модули python3-venv-и Python-и худ лозим аст.
+- Порт банд: `--port 8001` истифода кунед.
+- Рамзи demo фаромӯш шуд: `.venv\Scripts\python.exe manage.py seed_demo --reset-password --settings=config.demo_settings` (Windows); Linux `.venv/bin/python`.
+- Дар PostgreSQL authentication failed: PGUSER/PGPASSWORD/PGHOST-и .env-ро санҷед. Базаи мавҷудро тоза накунед.
+- Дизайни кӯҳна дар браузер: Ctrl+F5.
+- SMS preview: DEMO/preview ҳеҷ SMS намефиристад. Реҷаи gsm ва мактаби воқеӣ лозиманд.
+
+Барои идома docs/PROGRESS.md ва docs/CONTINUE.md-ро хонед. Ин release ба GitHub push нашудааст; ZIP таърихи commit-ҳоро ҳам дорад.

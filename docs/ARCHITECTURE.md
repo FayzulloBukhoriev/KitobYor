@@ -1,3 +1,12 @@
+# Навсозии релизи 2.0
+
+Ин бахш аз тавсифи таърихии поён болотар меистад. Frontend-и server-rendered Django + JavaScript, Django/DRF backend ва PostgreSQL барои production; SQLite танҳо барои demo. UI бо Noto Sans, sidebar, responsive layout ва саҳифаҳои account/SMS нав шуд. Language select дар хонанда ва китоб нест. Ҳисобдорӣ atomic ва school-scoped, таҳрири анбор бо optimistic revision. SMS бе HTTP API тавассути GSM/SIM, outbox ва worker-и ҷудогона; қисмҳои аллакай қабулшуда такроран фиристода намешаванд. Unknown outcome ба санҷиши оператор ниёз дорад. Парчами дастӣ аз header хориҷ шуд.
+
+Native start: `python test.py runserver`. Deployment: Docker Compose (PostgreSQL, migrations, Gunicorn, Caddy, optional GSM worker). Дастурҳои ҷорӣ: README.md, DEPLOYMENT.md, SMS.md, VALIDATION.md. Бонк ҳанӯз пайваст нест; пардохт дастӣ аст.
+
+---
+## Тавсифи версияи қаблӣ (таърих)
+
 # Архитектура · KitobYor 1.0
 
 Монолити модулӣ: Django 5.2 + Django REST Framework + PostgreSQL. Frontend дар templates/ ва static/ бо HTML/CSS/JavaScript сохта шудааст; build-и Node лозим нест. Ин барои анҷоми хурди мактабӣ нигоҳдорӣ ва иҷрои маҳаллиро осон мекунад. SQLite фақат demo-и ошкор аст.
