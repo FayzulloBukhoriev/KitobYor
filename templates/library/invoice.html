@@ -1,1 +1,77 @@
-{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>{{ inv.loan.student.full_name }} · {{ inv.loan.academic_year }} · {{ inv.created_at|date:"d.m.Y H:i" }}</p>{% endblock %}{% block actions %}<a class="button ghost" href="{% url 'invoices' %}">← Ҳисобҳо</a><button class="button primary" type="button" data-print>Чопи ҳисоб</button>{% endblock %}{% block content %}<div class="print-heading"><h1>{{ school.name }}</h1><h2>Ҳисоби иҷораи китоб · {{ inv.number }}</h2><p>{{ inv.loan.student.full_name }} · {{ inv.created_at|date:"d.m.Y" }}</p></div><div class="stats-grid three"><article class="stat"><span>Маблағи умумӣ</span><strong>{{ inv.total|money }} <em>с.</em></strong></article><article class="stat"><span>Пардохтшуда</span><strong class="positive">{{ inv.paid|money }} <em>с.</em></strong></article><article class="stat"><span>Қарзи боқимонда</span><strong>{{ inv.balance|money }} <em>с.</em></strong></article></div><section class="panel"><div class="panel-head"><div><h2>Китобҳои додашуда</h2><p>Нархҳо аз лаҳзаи иҷора нигоҳ дошта шудаанд.</p></div></div><form method="post">{% csrf_token %}<input type="hidden" name="action" value="return"><div class="table-wrap"><table><thead><tr>{% if can_library %}<th class="no-print">Интихоб</th>{% endif %}<th>Китоб</th><th>Соли нашр</th><th>Иҷора · с.</th><th>Ҳолат</th>{% if can_library %}<th class="no-print">Баргардонӣ</th>{% endif %}</tr></thead><tbody>{% for line in lines %}<tr>{% if can_library %}<td class="no-print">{% if line.state == 'issued' %}<input type="checkbox" name="return_{{ line.pk }}" aria-label="Интихоби {{ line.title_snapshot }}">{% endif %}</td>{% endif %}<td><strong>{{ line.title_snapshot }}</strong></td><td>{{ line.year_snapshot }}</td><td>{{ line.fee_snapshot|money }}</td><td><span class="badge {% if line.state == 'issued' %}blue{% else %}green{% endif %}">{{ line.get_state_display }}</span></td>{% if can_library %}<td class="no-print">{% if line.state == 'issued' %}<select name="state_{{ line.pk }}" aria-label="Ҳолати баргардонии {{ line.title_snapshot }}"><option value="returned">Солим</option><option value="damaged">Осебдида</option><option value="lost">Гумшуда</option></select>{% else %}{{ line.closed_at|date:"d.m.Y" }}{% endif %}</td>{% endif %}</tr>{% endfor %}</tbody></table></div>{% if can_library %}<div class="panel-foot no-print"><span class="muted">Баргардонӣ қарзро сифр намекунад.</span><button class="button ghost">Сабти баргардонии интихобшуда</button></div>{% endif %}</form></section><div class="reference-box"><strong>Истиноди дохилии ҳисоб:</strong><code>{{ inv.reference }}</code><small>Ин рақами пардохти бонк нест.</small></div><div class="two-columns no-print">{% if can_finance and inv.balance > 0 %}<section class="panel padded"><h2>Сабти пардохт</h2><p>Маблағи воқеии қабулшуда ва ҳуҷҷати асосро сабт кунед.</p><form method="post">{% csrf_token %}<input type="hidden" name="action" value="payment">{% include 'library/partials/fields.html' with form=payment %}<button class="button primary">Сабти пардохт</button></form></section>{% endif %}<section class="panel padded"><h2>Таърихи пардохт</h2>{% for p in payments %}<div class="payment-row"><div><strong>{{ p.receipt }}</strong><small>{{ p.created_at|date:"d.m.Y H:i" }} · {{ p.created_by.username }}</small><p>{{ p.note }}</p></div><strong class="positive">{{ p.amount|money }} с.</strong></div>{% empty %}<div class="empty compact"><p>Пардохт ҳанӯз сабт нашудааст.</p></div>{% endfor %}</section></div><div class="print-signatures"><p>Китобдор: ____________________</p><p>Хонанда / намоянда: ____________________</p></div>{% endblock %}
+{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>{{ inv.loan.student.full_name }} · {{ inv.loan.academic_year }} · {{ inv.created_at|date:'d.m.Y H:i' }}</p>{% endblock %}{% block actions %}<a class="button ghost" href="{% url 'invoices' %}">← Иҷораҳо</a>
+<button class="button ghost" type="button" data-print>Чоп</button>{% if can_library %}<a class="button primary" href="{% url 'issue' %}">Хонандаи навбатӣ →</a>{% endif %}{% endblock %}{% block content %}<div class="print-heading">
+<h1>{{ school.name }}</h1>
+<h2>Иҷораи китоб</h2>
+<p>{{ inv.loan.student.full_name }} · {{ inv.created_at|date:'d.m.Y' }}</p>
+</div>
+<section class="rental-summary">
+<div>
+<small>РАҚАМИ ПАРДОХТ</small>
+<strong class="big-payment-number">{{ inv.payment_number }}</strong>
+<span class="hint">Истиноди дохилӣ · барои пайвасти ояндаи бонк</span>
+</div>
+<div>
+<small>МАБЛАҒИ ИҶОРА</small>
+<strong>{{ inv.total|money }} <em>сомонӣ</em>
+</strong>
+</div>
+<div>{% if inv.balance == 0 %}<span class="badge green paid-large">✓ Пардохтшуда</span>{% else %}<span class="badge amber paid-large">Пардохтнашуда</span>{% if can_finance %}<form class="no-print" method="post">{% csrf_token %}<input type="hidden" name="action" value="paid">
+<button class="button primary">Пардохт шуд</button>
+</form>{% endif %}{% endif %}</div>
+</section>
+<section class="panel">
+<div class="panel-head">
+<div>
+<h2>Китобҳои иҷорагирифта</h2>
+<p>{{ lines|length }} китоб · нархи вақти тасдиқ нигоҳ дошта шудааст.</p>
+</div>
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>№</th>
+<th>Китоб</th>
+<th>Соли нашр</th>
+<th>Нархи иҷора</th>
+</tr>
+</thead>
+<tbody>{% for line in lines %}<tr>
+<td>{{ forloop.counter }}</td>
+<td>
+<strong>{{ line.title_snapshot }}</strong>
+</td>
+<td>{{ line.year_snapshot }}</td>
+<td>{{ line.fee_snapshot|money }} с.</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+<div class="two-columns no-print">
+<section class="panel padded sms-card">
+<div class="sms-heading">
+<span class="sms-icon">✉</span>
+<div>
+<h2>Паём ба волидайн</h2>
+<p>{{ notification.destination|default:'Телефони волидайн сабт нашудааст' }}</p>
+</div>
+<span class="badge blue">Пешнамоиш</span>
+</div>{% if notification %}<div class="sms-bubble" id="sms-body">{{ notification.body }}</div>
+<button class="button ghost small" type="button" data-copy="sms-body">Нусха кардани матн</button>{% else %}<p>Барои ин иҷораи пешина паём ҳанӯз омода нашудааст.</p>{% endif %}<p class="hint">SMS фиристода нашудааст. Баъди пайвасти провайдер фиристодан фаъол мешавад.</p>
+</section>
+<section class="panel padded">
+<h2>Таърихи пардохт</h2>{% for p in payments %}<div class="payment-row">
+<div>
+<strong>Пардохти сабтшуда</strong>
+<small>{{ p.created_at|date:'d.m.Y H:i' }} · {{ p.created_by.username }}</small>
+<p>{{ p.note }}</p>
+</div>
+<strong class="positive">{{ p.amount|money }} с.</strong>
+</div>{% empty %}<div class="empty compact">
+<p>Ҳоло пардохт сабт нашудааст.</p>
+</div>{% endfor %}</section>
+</div>
+<div class="print-signatures">
+<p>Китобдор: ____________________</p>
+<p>Хонанда / намоянда: ____________________</p>
+</div>{% endblock %}

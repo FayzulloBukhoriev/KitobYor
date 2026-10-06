@@ -1,0 +1,8 @@
+<form class="filters" method="get">
+<input aria-label="Ҷустуҷӯи хонанда" name="q" placeholder="Ному насаби хонанда…" value="{{ q }}">
+<select aria-label="Синф" name="grade">
+<option value="">Ҳамаи синфҳо</option>{% for g in grades %}<option value="{{ g }}" {% if grade == g|stringformat:'s' %}selected{% endif %}>Синфи {{ g }}</option>{% endfor %}</select>
+<select aria-label="Гурӯҳ" name="group" class="group-select">
+<option value="">Ҳамаи гурӯҳҳо</option>{% for value,label in groups %}<option value="{{ value }}" {% if group == value %}selected{% endif %}>Гурӯҳи {{ label }}</option>{% endfor %}</select>
+<button class="button primary">Ҷустуҷӯ</button>
+</form>

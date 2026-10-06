@@ -1,1 +1,68 @@
-{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Маълумоти ҳамаи солҳои сабтшудаи мактаб. CSV-ро дар Excel кушода метавонед.</p>{% endblock %}{% block content %}<div class="stats-grid three"><article class="stat"><span>Ҳамаи ҳисобҳо</span><strong>{{ total|money }} <em>с.</em></strong></article><article class="stat"><span>Пардохтшуда</span><strong>{{ paid|money }} <em>с.</em></strong></article><article class="stat"><span>Содироти маълумот</span><strong>CSV</strong><small>UTF-8 · барои Excel</small></article></div><div class="report-grid"><a class="panel report-card" href="{% url 'export' %}?kind=invoices"><span>▧</span><h2>Иҷорагирандагон</h2><p>Хонанда, китоб, нашр, маблағ ва истинод.</p><b>Боргирии CSV ↓</b></a><a class="panel report-card" href="{% url 'export' %}?kind=debt"><span>◷</span><h2>Қарздорон</h2><p>Ҳисобҳо бо бақияи пардохт.</p><b>Боргирии CSV ↓</b></a><a class="panel report-card" href="{% url 'export' %}?kind=outstanding"><span>↙</span><h2>Китобҳои барнагашта</h2><p>Китобҳои ҳоло дар дасти хонандагон.</p><b>Боргирии CSV ↓</b></a><a class="panel report-card" href="{% url 'export' %}?kind=stock"><span>▤</span><h2>Бақияи анбор</h2><p>Китоб, синф, нашр, дастрас ва осебдида.</p><b>Боргирии CSV ↓</b></a></div>{% endblock %}
+{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Ҷамъбасти иҷораҳо ва пардохтҳо. Маълумоти содда, чоп ва CSV барои Excel.</p>{% endblock %}{% block actions %}<a class="button primary" href="{% url 'export' %}">↓ Ҳамаи иҷораҳо</a>{% endblock %}{% block content %}<div class="stats-grid">
+<article class="stat">
+<div>
+<span>Ҳамаи иҷораҳо</span>
+<span class="stat-icon blue">▧</span>
+</div>
+<strong>{{ rentals }}</strong>
+<small>{{ book_count }} китоб дар иҷораҳои сабтшуда</small>
+</article>
+<article class="stat">
+<div>
+<span>Пардохтшуда</span>
+<span class="stat-icon green">✓</span>
+</div>
+<strong>{{ paid_count }}</strong>
+<small>Қабули маблағ тасдиқ шудааст</small>
+</article>
+<article class="stat">
+<div>
+<span>Пардохтнашуда</span>
+<span class="stat-icon amber">◷</span>
+</div>
+<strong>{{ unpaid_count }}</strong>
+<small>Интизори тасдиқи пардохт</small>
+</article>
+<article class="stat">
+<div>
+<span>Маблағи қабулшуда</span>
+<span class="stat-icon green">▥</span>
+</div>
+<strong>{{ paid|money }} <em>с.</em>
+</strong>
+<small>Аз сабтҳои пардохт</small>
+</article>
+</div>
+<div class="report-grid">
+<a class="panel report-card" href="{% url 'export' %}?kind=invoices">
+<span>▧</span>
+<h2>Ҳамаи иҷораҳо</h2>
+<p>Як сатр барои ҳар иҷора: хонанда, китобҳо, рақам ва маблағ.</p>
+<b>Боргирии CSV ↓</b>
+</a>
+<a class="panel report-card" href="{% url 'export' %}?kind=paid">
+<span>✓</span>
+<h2>Пардохтшуда</h2>
+<p>Иҷораҳое, ки маблағашон пурра қабул шудааст.</p>
+<b>Боргирии CSV ↓</b>
+</a>
+<a class="panel report-card" href="{% url 'export' %}?kind=unpaid">
+<span>◷</span>
+<h2>Пардохтнашуда</h2>
+<p>Иҷораҳои интизори тасдиқи пардохт.</p>
+<b>Боргирии CSV ↓</b>
+</a>
+<a class="panel report-card" href="{% url 'export' %}?kind=stock">
+<span>▤</span>
+<h2>Анбори китобҳо</h2>
+<p>Ном, синф, соли нашр, шумора ва нархи иҷора.</p>
+<b>Боргирии CSV ↓</b>
+</a>
+</div>
+<section class="panel report-note">
+<span>ⓘ</span>
+<div>
+<strong>Ҳисобот бо маълумоти сабтшуда</strong>
+<p>Ҷамъбасти маблағҳо дигар дар ҳар сатри китоб такрор намешавад. Барои ҳар иҷора як сатр содир мешавад.</p>
+</div>
+</section>{% endblock %}

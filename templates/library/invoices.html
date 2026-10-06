@@ -1,1 +1,30 @@
-{% extends 'library/base.html' %}{% block subtitle %}<p>Китобҳои додашуда, маблағи иҷора ва бақияи пардохт.</p>{% endblock %}{% block actions %}<a class="button ghost" href="{% url 'export' %}">↓ CSV</a>{% endblock %}{% block content %}<section class="panel"><form method="get" class="filters"><input name="q" aria-label="Ҷустуҷӯ" placeholder="Хонанда ё рамз…" value="{{ q }}"><select name="status" aria-label="Ҳолати пардохт"><option value="">Ҳамаи ҳолатҳо</option><option value="unpaid" {% if status == 'unpaid' %}selected{% endif %}>Пардохт нашуда</option><option value="partial" {% if status == 'partial' %}selected{% endif %}>Қисман пардохт</option><option value="paid" {% if status == 'paid' %}selected{% endif %}>Пардохтшуда</option></select><button class="button primary">Ҷустуҷӯ</button><a class="button ghost" href="{% url 'invoices' %}">Тоза</a></form><div class="table-wrap"><table><thead><tr><th>Ҳисоб</th><th>Хонанда</th><th>Ҳамагӣ · с.</th><th>Пардохт · с.</th><th>Қарз · с.</th><th>Ҳолат</th><th></th></tr></thead><tbody>{% include 'library/partials/invoice_rows.html' %}</tbody></table></div>{% include 'library/partials/pagination.html' %}</section>{% endblock %}
+{% extends 'library/base.html' %}{% block subtitle %}<p>Рақами пардохт, хонанда, шумораи китобҳо ва маблағ. Ҳолатро пас аз қабули нақдӣ тасдиқ кунед.</p>{% endblock %}{% block actions %}<a class="button ghost" href="{% url 'export' %}">↓ Ҳисоботи CSV</a>{% endblock %}{% block content %}<section class="panel">
+<form method="get" class="filters">
+<input name="q" aria-label="Ҷустуҷӯи иҷора" placeholder="Хонанда ё рақами пардохт…" value="{{ q }}">
+<select name="status" aria-label="Ҳолати пардохт">
+<option value="">Ҳамаи иҷораҳо</option>
+<option value="unpaid" {% if status == 'unpaid' %}selected{% endif %}>Пардохтнашуда</option>
+<option value="paid" {% if status == 'paid' %}selected{% endif %}>Пардохтшуда</option>
+</select>
+<select name="grade" aria-label="Синф">
+<option value="">Ҳамаи синфҳо</option>{% for g in grades %}<option value="{{ g }}" {% if grade == g|stringformat:'s' %}selected{% endif %}>Синфи {{ g }}</option>{% endfor %}</select>
+<select name="group" aria-label="Гурӯҳ">
+<option value="">Ҳамаи гурӯҳҳо</option>{% for value,label in groups %}<option value="{{ value }}" {% if group == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+<button class="button primary">Ҷустуҷӯ</button>
+</form>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Рақами пардохт</th>
+<th>Хонанда</th>
+<th>Китобҳо</th>
+<th>Маблағ</th>
+<th>Ҳолат</th>
+<th>Амал</th>
+</tr>
+</thead>
+<tbody>{% include 'library/partials/invoice_rows.html' %}</tbody>
+</table>
+</div>{% include 'library/partials/pagination.html' %}</section>
+<p class="hint">«Пардохт шуд» қабули пурраи маблағи нақдиро сабт мекунад. Пайвасти автоматии бонк ҳоло фаъол нест.</p>{% endblock %}

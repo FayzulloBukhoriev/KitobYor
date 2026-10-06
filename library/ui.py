@@ -1,7 +1,7 @@
 """Server-rendered school workspace. Every data query is scoped to request.school."""
 import csv
 from decimal import Decimal
-from uuid import uuid4
+from uuid import uuid4,UUID
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
@@ -10,15 +10,15 @@ from django.http import HttpResponse
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.decorators.http import require_http_methods
 from .permissions import school_required
-from .models import Student, Enrollment, Edition, Stock, LoanLine, Invoice, Kit, AuditEvent
-from .forms import StudentForm, CatalogForm, IntakeForm, TariffForm, KitForm, PaymentForm, ImportForm
+from .models import Student, Enrollment, Edition, Stock, LoanLine, Invoice, Kit, AuditEvent, SmsNotification
+from .forms import StudentForm, CatalogForm, IntakeForm, TariffForm, KitForm, PaymentForm, ImportForm, GROUPS, normalize_group
 from . import services, importing
 from .api.serializers import IssueWrite
 from rest_framework.exceptions import ValidationError as APIValidationError
 
 
 def page(request,template,**context):
-    context.update(can_library=request.member.role in ('admin','librarian'),can_finance=request.member.role in ('admin','accountant'),grades=range(1,12))
+    context.update(can_library=request.member.role in ('admin','librarian'),can_finance=request.member.role in ('admin','accountant'),grades=range(1,12),groups=GROUPS)
     return render(request,'library/'+template+'.html',context)
 
 def error(form,exc):
@@ -27,7 +27,7 @@ def error(form,exc):
 def student_query(request):
     qs=Student.objects.filter(school=request.school).prefetch_related('enrollments')
     enrollment_filters={'enrollments__academic_year':request.school.academic_year}
-    q=request.GET.get('q','').strip();grade=request.GET.get('grade','');group=request.GET.get('group','').strip()
+    q=request.GET.get('q','').strip();grade=request.GET.get('grade','');group=normalize_group(request.GET.get('group',''))
     if q:qs=qs.filter(Q(full_name__icontains=q)|Q(code__icontains=q))
     if grade.isdigit() and 1<=int(grade)<=11:enrollment_filters['enrollments__grade']=int(grade)
     if group:enrollment_filters['enrollments__group']=group
@@ -40,12 +40,17 @@ def dashboard(request):
     school=request.school
     money=Invoice.objects.filter(school=school,loan__academic_year=school.academic_year).aggregate(total=Sum('total'),paid=Sum('paid'))
     total,paid=money['total'] or Decimal('0.00'),money['paid'] or Decimal('0.00')
-    stats={'students':Student.objects.filter(school=school,active=True,enrollments__academic_year=school.academic_year).count(),'available':Stock.objects.filter(edition__book__school=school).aggregate(n=Sum('available'))['n'] or 0,'issued':LoanLine.objects.filter(loan__school=school,state='issued').count(),'total':total,'paid':paid,'debt':total-paid}
+    stats={'students':Student.objects.filter(school=school,active=True,enrollments__academic_year=school.academic_year).count(),'available':Stock.objects.filter(edition__book__school=school).aggregate(n=Sum('available'))['n'] or 0,'issued':LoanLine.objects.filter(loan__school=school,state='issued').count(),'total':total,'paid':paid,'paid_count':Invoice.objects.filter(school=school,paid=F('total')).count(),'unpaid_count':Invoice.objects.filter(school=school,paid__lt=F('total')).count(),'paid_amount':paid}
     return page(request,'dashboard',active='dashboard',title='Пештахта',stats=stats,recent=Invoice.objects.filter(school=school).select_related('loan__student')[:5],low=Edition.objects.filter(book__school=school,stock__available__lt=5).select_related('book','stock')[:5],activity=AuditEvent.objects.filter(school=school).select_related('user').order_by('-id')[:5])
 
 @school_required()
 def students(request):
-    return page(request,'students',active='students',title='Хонандагон',rows=paginate(request,student_query(request)),q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=request.GET.get('group',''))
+    rows=paginate(request,student_query(request))
+    latest={}
+    for inv in Invoice.objects.filter(school=request.school,loan__student_id__in=[r.pk for r in rows],loan__academic_year=request.school.academic_year).order_by('-id'):
+        latest.setdefault(inv.loan.student_id,inv)
+    for student in rows:student.latest_invoice=latest.get(student.pk)
+    return page(request,'students',active='students',title='Хонандагон',rows=rows,q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=normalize_group(request.GET.get('group','')))
 
 @school_required('admin','librarian')
 @require_http_methods(['GET','POST'])
@@ -54,7 +59,7 @@ def student_form(request,pk=None):
     initial={}
     if student:
         en=services.enrollment(student,request.school)
-        initial=dict(code=student.code,full_name=student.full_name,address=student.address,grade=en.grade,group=en.group,language=en.language)
+        initial=dict(full_name=student.full_name,address=student.address,grade=en.grade,group=normalize_group(en.group),language=en.language,parent_name=student.parent_name,parent_phone=student.parent_phone)
     form=StudentForm(request.POST if request.method=='POST' else None,initial=initial)
     if request.method=='POST' and form.is_valid():
         try:
@@ -91,7 +96,7 @@ def student_import(request):
 @school_required()
 def import_template(request):
     response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="KitobYor-students.csv"'
-    response.write('\ufeff');writer=csv.writer(response);writer.writerow(importing.HEADERS);writer.writerow(['NEW001','Хонандаи намунавӣ','5','А','Суроғаи намунавӣ','Тоҷикӣ'])
+    response.write('\ufeff');writer=csv.writer(response);writer.writerow(importing.HEADERS);writer.writerow(['Хонандаи намунавӣ','5','A','Суроғаи намунавӣ','Намояндаи намунавӣ','+992000000000'])
     return response
 
 @school_required()
@@ -106,35 +111,19 @@ def inventory(request):
 
 @school_required('admin','librarian')
 @require_http_methods(['GET','POST'])
-def catalog_form(request):
-    form=CatalogForm(request.POST if request.method=='POST' else None)
+def catalog_form(request,pk=None):
+    ed=get_object_or_404(Edition.objects.select_related('book','stock'),book__school=request.school,pk=pk) if pk else None
+    initial={}
+    if ed:
+        tariff=ed.tariffs.filter(academic_year=request.school.academic_year).first()
+        initial=dict(title=ed.book.title,grade=ed.book.grade,year=ed.year,quantity=ed.stock.available,fee=tariff.fee if tariff else 0)
+    form=CatalogForm(request.POST if request.method=='POST' else None,initial=initial)
     if request.method=='POST' and form.is_valid():
         try:
-            ed=services.create_catalog(user=request.user,school=request.school,**form.cleaned_data)
-            messages.success(request,'Нашр илова шуд. Ҳоло шумораи нусхаҳоро ворид кунед.');return redirect('edition_detail',pk=ed.pk)
+            services.save_inventory(user=request.user,school=request.school,edition_id=ed.pk if ed else None,**form.cleaned_data)
+            messages.success(request,'Маълумоти китоб иваз шуд.' if ed else 'Китоб, шумора ва нарх сабт шуданд.');return redirect('inventory')
         except (services.DomainError,ValidationError) as exc:error(form,exc)
-    return page(request,'form',active='inventory',title='Иловаи китоб ё нашр',subtitle='Барои ҳар нашр бақия ва тариф ҷудо нигоҳ дошта мешавад.',form=form,back='inventory')
-
-@school_required()
-@require_http_methods(['GET','POST'])
-def edition_detail(request,pk):
-    ed=get_object_or_404(Edition.objects.select_related('book','stock'),book__school=request.school,pk=pk)
-    tariff=ed.tariffs.filter(academic_year=request.school.academic_year).first()
-    intake=IntakeForm(prefix='intake');pricing=TariffForm(prefix='tariff',initial={'fee':tariff.fee,'note':tariff.note,'approved':tariff.approved} if tariff else {})
-    if request.method=='POST':
-        action=request.POST.get('action')
-        if action=='intake':
-            intake=IntakeForm(request.POST,prefix='intake')
-            if intake.is_valid():
-                try:services.intake(user=request.user,school=request.school,edition_id=ed.pk,**intake.cleaned_data);messages.success(request,'Нусхаҳо ба анбор ворид шуданд.');return redirect('edition_detail',pk=pk)
-                except services.DomainError as exc:error(intake,exc)
-        elif action=='tariff':
-            pricing=TariffForm(request.POST,prefix='tariff')
-            if pricing.is_valid():
-                try:services.set_tariff(user=request.user,school=request.school,edition_id=ed.pk,**pricing.cleaned_data);messages.success(request,'Тариф сабт шуд.');return redirect('edition_detail',pk=pk)
-                except (services.DomainError,ValidationError) as exc:error(pricing,exc)
-        else:messages.error(request,'Амали номаълум.')
-    return page(request,'edition',active='inventory',title=ed.book.title,ed=ed,tariff=tariff,intake=intake,pricing=pricing,movements=ed.movements.select_related('created_by').order_by('-id')[:20])
+    return page(request,'form',active='inventory',title='Иваз кардани китоб' if ed else 'Китоби нав',subtitle='Шумора — нусхаҳои ҳоло дар анбор. Нашри соли дигар нархи ҷудо дорад.',form=form,back='inventory')
 
 @school_required()
 def kits(request):
@@ -155,78 +144,68 @@ def kit_form(request):
 @school_required('admin','librarian')
 @require_http_methods(['GET','POST'])
 def issue(request):
-    student=None;kit=None;preview=None
+    student=None;preview=None
     raw=request.POST.get('student_id') if request.method=='POST' else request.GET.get('student')
     if raw:
-        student=get_object_or_404(Student,school=request.school,pk=raw if str(raw).isdigit() else 0)
+        student=get_object_or_404(Student,school=request.school,active=True,pk=raw if str(raw).isdigit() else 0)
         try:
-            en=services.enrollment(student,request.school)
-            kit=Kit.objects.filter(school=request.school,grade=en.grade,language=en.language,academic_year=request.school.academic_year).first()
-            if not kit:messages.warning(request,'Барои синф ва забони ин хонанда маҷмӯа ҳанӯз сохта нашудааст.')
-            else:
-                if request.method=='POST':
-                    choices=[]
-                    for item in kit.items.all():
-                        value=request.POST.get(f'choice_{item.pk}','')
-                        if value:choices.append({'kit_item_id':item.pk,'edition_id':value})
-                    data=IssueWrite(data={'student_id':student.pk,'kit_id':kit.pk,'choices':choices,'expected_total':request.POST.get('expected_total'),'token':request.POST.get('token'),'allow_partial':request.POST.get('allow_partial')=='on'})
-                    data.is_valid(raise_exception=True)
-                    inv=services.confirm_issue(user=request.user,school=request.school,**data.validated_data)
-                    messages.success(request,'Китобҳо дода шуданд. Ҳисоби иҷора омода аст.');return redirect('invoice_detail',pk=inv.pk)
-                preview=services.preview_issue(request.school,student.pk,kit.pk)
-        except (services.DomainError,APIValidationError) as exc:
-            messages.error(request,str(exc) if isinstance(exc,services.DomainError) else 'Интихоб ва маблағро санҷед. Ҳадди ақал як китоб лозим аст.')
-            if kit:preview=services.preview_issue(request.school,student.pk,kit.pk)
-    if preview:
-        for row in preview['items']:
-            row['ready_choices']=[c for c in row['choices'] if c['available']>0 and c['approved']]
-    return page(request,'issue',active='issue',title='Додани китоб',students=paginate(request,student_query(request).filter(active=True)),student=student,kit=kit,preview=preview,token=str(uuid4()),q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=request.GET.get('group',''))
+            if request.method=='POST':
+                ids=[int(v) for v in request.POST.getlist('editions')]
+                total=Decimal(request.POST.get('expected_total',''))
+                inv=services.confirm_catalog_issue(user=request.user,school=request.school,student_id=student.pk,edition_ids=ids,token=UUID(request.POST.get('token','')),expected_total=total)
+                messages.success(request,'Иҷора тасдиқ шуд. Рақами дохилии пардохт ва пешнамоиши SMS омодаанд.');return redirect('invoice_detail',pk=inv.pk)
+            preview=services.preview_catalog(request.school,student.pk)
+        except (ValueError,ArithmeticError,services.DomainError) as exc:
+            messages.error(request,str(exc) if isinstance(exc,services.DomainError) else 'Интихоби китобҳо ва маблағро санҷед.')
+            preview=services.preview_catalog(request.school,student.pk)
+    return page(request,'issue',active='issue',title='Додани китоб',students=paginate(request,student_query(request).filter(active=True)),student=student,preview=preview,token=str(uuid4()),q=request.GET.get('q',''),grade=request.GET.get('grade',''),group=normalize_group(request.GET.get('group','')))
+
+
+def invoice_query(request):
+    qs=Invoice.objects.filter(school=request.school).select_related('loan__student').prefetch_related('loan__student__enrollments').annotate(book_count=Count('loan__lines'))
+    q=request.GET.get('q','').strip();status=request.GET.get('status','')
+    if q.isdigit() and q.startswith('10'):
+        pk=q[2:]
+        qs=qs.filter(pk=int(pk)) if pk.isdigit() else qs.none()
+    elif q:qs=qs.filter(loan__student__full_name__icontains=q)
+    if status=='paid':qs=qs.filter(paid=F('total'))
+    elif status=='unpaid':qs=qs.filter(paid__lt=F('total'))
+    grade=request.GET.get('grade','');group=normalize_group(request.GET.get('group',''))
+    filters={}
+    if grade.isdigit() and 1<=int(grade)<=11:filters['loan__student__enrollments__grade']=int(grade)
+    if group in 'ABCDE' and len(group)==1:filters['loan__student__enrollments__group']=group
+    if filters:
+        filters['loan__student__enrollments__academic_year']=F('loan__academic_year')
+        qs=qs.filter(**filters)
+    return qs.order_by('-id')
 
 @school_required()
+@require_http_methods(['GET','POST'])
 def invoices(request):
-    qs=Invoice.objects.filter(school=request.school).select_related('loan__student')
-    q=request.GET.get('q','').strip();status=request.GET.get('status','')
-    if q:qs=qs.filter(Q(loan__student__full_name__icontains=q)|Q(loan__student__code__icontains=q))
-    if status=='paid':qs=qs.filter(paid=F('total'))
-    elif status=='unpaid':qs=qs.filter(paid=0,total__gt=0)
-    elif status=='partial':qs=qs.filter(paid__gt=0,paid__lt=F('total'))
-    return page(request,'invoices',active='invoices',title='Ҳисобҳои иҷора',rows=paginate(request,qs),q=q,status=status)
+    if request.method=='POST':
+        try:
+            services.mark_cash_paid(user=request.user,school=request.school,invoice_id=int(request.POST.get('invoice_id','0')))
+            messages.success(request,'Қабули маблағи нақдӣ тасдиқ шуд.');return redirect(request.get_full_path())
+        except (ValueError,services.DomainError) as exc:messages.error(request,str(exc) if isinstance(exc,services.DomainError) else 'Иҷора ёфт нашуд.')
+    return page(request,'invoices',active='invoices',title='Иҷораҳо',rows=paginate(request,invoice_query(request)),q=request.GET.get('q',''),status=request.GET.get('status',''),grade=request.GET.get('grade',''),group=normalize_group(request.GET.get('group','')))
 
 @school_required()
 @require_http_methods(['GET','POST'])
 def invoice_detail(request,pk):
-    inv=get_object_or_404(Invoice.objects.select_related('loan__student'),school=request.school,pk=pk)
-    payment=PaymentForm(initial={'amount':inv.balance,'token':uuid4()})
+    inv=get_object_or_404(Invoice.objects.select_related('loan__student').prefetch_related('loan__student__enrollments'),school=request.school,pk=pk)
     if request.method=='POST':
-        if request.POST.get('action')=='payment':
-            payment=PaymentForm(request.POST)
-            if payment.is_valid():
-                try:
-                    services.record_payment(user=request.user,school=request.school,invoice_id=inv.pk,**payment.cleaned_data)
-                    messages.success(request,'Пардохт сабт шуд.');return redirect('invoice_detail',pk=pk)
-                except services.DomainError as exc:error(payment,exc)
-        elif request.POST.get('action')=='return':
-            try:
-                lines=[]
-                for line in inv.loan.lines.all():
-                    if request.POST.get(f'return_{line.pk}'):lines.append({'line_id':line.pk,'state':request.POST.get(f'state_{line.pk}')})
-                services.close_lines(user=request.user,school=request.school,loan_id=inv.loan_id,lines=lines)
-                messages.success(request,'Ҳолати китобҳо сабт шуд. Бақияи қарз тағйир наёфт.');return redirect('invoice_detail',pk=pk)
-            except services.DomainError as exc:messages.error(request,str(exc))
-        else:messages.error(request,'Амали номаълум.')
-    return page(request,'invoice',active='invoices',title=inv.number,inv=inv,lines=inv.loan.lines.select_related('edition'),payments=inv.payments.select_related('created_by').order_by('-id'),payment=payment)
-
-@school_required()
-def returns(request):
-    qs=Invoice.objects.filter(school=request.school,loan__lines__state='issued').distinct().select_related('loan__student')
-    q=request.GET.get('q','').strip()
-    if q:qs=qs.filter(Q(loan__student__full_name__icontains=q)|Q(loan__student__code__icontains=q))
-    return page(request,'returns',active='returns',title='Баргардонидани китоб',rows=paginate(request,qs),q=q)
+        try:
+            if request.POST.get('action')!='paid':raise services.DomainError('Амали номаълум.')
+            services.mark_cash_paid(user=request.user,school=request.school,invoice_id=inv.pk)
+            messages.success(request,'Пардохти нақдӣ сабт шуд.');return redirect('invoice_detail',pk=pk)
+        except services.DomainError as exc:messages.error(request,str(exc))
+    return page(request,'invoice',active='invoices',title='Иҷораи китоб',inv=inv,lines=inv.loan.lines.all(),payments=inv.payments.select_related('created_by').order_by('-id'),notification=SmsNotification.objects.filter(invoice=inv).first())
 
 @school_required()
 def reports(request):
-    totals=Invoice.objects.filter(school=request.school).aggregate(total=Sum('total'),paid=Sum('paid'))
-    return page(request,'reports',active='reports',title='Ҳисобот',total=totals['total'] or 0,paid=totals['paid'] or 0)
+    qs=Invoice.objects.filter(school=request.school)
+    totals=qs.aggregate(total=Sum('total'),paid=Sum('paid'))
+    return page(request,'reports',active='reports',title='Ҳисобот',total=totals['total'] or 0,paid=totals['paid'] or 0,paid_count=qs.filter(paid=F('total')).count(),unpaid_count=qs.filter(paid__lt=F('total')).count(),rentals=qs.count(),book_count=LoanLine.objects.filter(loan__school=request.school).count())
 
 def csv_safe(value):
     value=str(value)
@@ -237,15 +216,17 @@ def export(request):
     response=HttpResponse(content_type='text/csv; charset=utf-8');response['Content-Disposition']='attachment; filename="KitobYor-report.csv"';response.write('\ufeff');writer=csv.writer(response)
     kind=request.GET.get('kind','invoices')
     if kind=='stock':
-        writer.writerow(['Китоб','Синф','Нашр','Рамзи нашр','Дастрас','Осебдида'])
-        for ed in Edition.objects.filter(book__school=request.school).select_related('book','stock'):
-            writer.writerow([csv_safe(ed.book.title),ed.book.grade,ed.year,csv_safe(ed.code),ed.stock.available,ed.stock.damaged])
+        writer.writerow(['Китоб','Синф','Соли нашр','Шумора дар анбор','Нархи иҷора'])
+        for ed in Edition.objects.filter(book__school=request.school).select_related('book','stock').prefetch_related('tariffs'):
+            tariff=next((t for t in ed.tariffs.all() if t.academic_year==request.school.academic_year),None)
+            writer.writerow([csv_safe(ed.book.title),ed.book.grade,ed.year,ed.stock.available,tariff.fee if tariff else ''])
     else:
-        writer.writerow(['Ҳисоб','Хонанда','Китоб','Соли нашр','Иҷора','Ҳолат','Ҳамагӣ','Пардохт','Қарз','Истинод'])
-        qs=Invoice.objects.filter(school=request.school).select_related('loan__student').prefetch_related('loan__lines')
-        if kind=='debt':qs=qs.filter(paid__lt=F('total'))
+        writer.writerow(['Рақами пардохт (дохилӣ)','Хонанда','Синф','Гурӯҳ','Шумораи китобҳо','Китобҳо','Маблағ','Ҳолати пардохт','Сана'])
+        qs=invoice_query(request).prefetch_related('loan__lines')
+        if kind=='paid':qs=qs.filter(paid=F('total'))
+        if kind=='unpaid':qs=qs.filter(paid__lt=F('total'))
         for inv in qs:
-            for line in inv.loan.lines.all():
-                if kind=='outstanding' and line.state!='issued':continue
-                writer.writerow([inv.number,csv_safe(inv.loan.student.full_name),csv_safe(line.title_snapshot),line.year_snapshot,line.fee_snapshot,line.get_state_display(),inv.total,inv.paid,inv.balance,str(inv.reference)])
+            en=next((e for e in inv.loan.student.enrollments.all() if e.academic_year==inv.loan.academic_year),None)
+            books='; '.join(f'{line.title_snapshot} ({line.year_snapshot})' for line in inv.loan.lines.all())
+            writer.writerow([inv.payment_number,csv_safe(inv.loan.student.full_name),en.grade if en else '',en.group if en else '',inv.book_count,csv_safe(books),inv.total,'Пардохтшуда' if inv.balance==0 else 'Пардохтнашуда',inv.created_at.date()])
     return response

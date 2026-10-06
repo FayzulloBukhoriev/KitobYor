@@ -28,7 +28,3 @@ class LimitedLoginView(LoginView):
     def form_valid(self,form):
         LoginAttempt.objects.filter(key=self.key()).delete()
         return super().form_valid(form)
-
-@school_required()
-def dashboard(request):
-    return render(request,'library/dashboard.html',{'year':request.school.academic_year})

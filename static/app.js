@@ -61,3 +61,40 @@ if (kitForm) {
   language.addEventListener('change', filter);
   filter();
 }
+
+const catalogForm = document.getElementById('catalog-issue-form');
+if (catalogForm) {
+  const checks = [...catalogForm.querySelectorAll('.book-check')];
+  const all = document.getElementById('select-all-books');
+  const updateCatalog = () => {
+    let cents=0, count=0;
+    for (const check of checks) {
+      const select=document.getElementById(check.dataset.choice);
+      select.disabled=!check.checked;
+      const option=select.selectedOptions[0];
+      const row=check.closest('tr');
+      row.classList.toggle('chosen',check.checked);
+      row.querySelector('.row-available').textContent=option.dataset.available;
+      row.querySelector('.row-fee').textContent=option.dataset.fee;
+      if (!check.checked) continue;
+      count++;
+      const [whole,fraction='']=option.dataset.fee.split('.');
+      cents+=Number(whole)*100+Number(fraction.padEnd(2,'0'));
+    }
+    const total=`${Math.floor(cents/100)}.${String(cents%100).padStart(2,'0')}`;
+    document.getElementById('total-display').textContent=total;
+    document.getElementById('expected-total').value=total;
+    document.getElementById('selected-count').textContent=count;
+    document.getElementById('confirm-issue').disabled=count===0;
+    all.checked=checks.length>0&&checks.every(c=>c.checked);
+    all.indeterminate=checks.some(c=>c.checked)&&!all.checked;
+  };
+  checks.forEach(check=>check.addEventListener('change',updateCatalog));
+  catalogForm.querySelectorAll('.catalog-edition').forEach(select=>select.addEventListener('change',updateCatalog));
+  all.addEventListener('change',()=>{checks.forEach(c=>c.checked=all.checked);updateCatalog();});
+  updateCatalog();
+}
+document.querySelectorAll('[data-copy]').forEach(button=>button.addEventListener('click',async()=>{
+  try{await navigator.clipboard.writeText(document.getElementById(button.dataset.copy).textContent.trim());button.textContent='✓ Нусха шуд';}
+  catch{button.textContent='Матнро интихоб ва Ctrl+C кунед';}
+}));

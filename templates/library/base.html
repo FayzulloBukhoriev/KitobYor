@@ -1,1 +1,73 @@
-{% load static %}<!doctype html><html lang="tg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>{{ title }} · KitobYor</title><link rel="stylesheet" href="{% static 'app.css' %}"><script defer src="{% static 'app.js' %}"></script></head><body><aside class="sidebar" id="sidebar"><a class="brand" href="{% url 'dashboard' %}"><span class="brand-icon">K</span>Kitob<span>Yor</span></a><div class="nav-caption">ФАЗОИ МАКТАБ</div><nav aria-label="Менюи асосӣ"><a class="{% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}"><span>◫</span>Пештахта</a><a class="{% if active == 'students' %}active{% endif %}" href="{% url 'students' %}"><span>♙</span>Хонандагон</a><a class="{% if active == 'inventory' %}active{% endif %}" href="{% url 'inventory' %}"><span>▤</span>Анбори китобҳо</a><a class="{% if active == 'kits' %}active{% endif %}" href="{% url 'kits' %}"><span>▦</span>Маҷмӯаҳо</a>{% if can_library %}<a class="{% if active == 'issue' %}active{% endif %}" href="{% url 'issue' %}"><span>↗</span>Додани китоб</a>{% endif %}<a class="{% if active == 'invoices' %}active{% endif %}" href="{% url 'invoices' %}"><span>▧</span>Ҳисобҳо</a><a class="{% if active == 'returns' %}active{% endif %}" href="{% url 'returns' %}"><span>↙</span>Баргардонидан</a><a class="{% if active == 'reports' %}active{% endif %}" href="{% url 'reports' %}"><span>▥</span>Ҳисобот</a></nav><div class="sidebar-bottom"><span class="avatar">{{ request.user.username|first|upper }}</span><div><strong>{{ request.user.username }}</strong><small>{{ membership.get_role_display }}</small></div><form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="icon-button" aria-label="Баромадан" title="Баромадан">↪</button></form></div></aside><div class="app-shell"><header class="topbar"><div class="school"><button class="mobile-toggle icon-button" aria-label="Кушодани меню" aria-controls="sidebar" aria-expanded="false">☰</button><span class="school-icon">⌂</span><div><strong>{{ school.name }}</strong><small>Китобхонаи мактаб</small></div></div><div class="topbar-right"><span class="year-chip">{{ school.academic_year }}</span>{% if school.code == 'DEMO' %}<span class="badge amber">DEMO{% if demo_mode %} · SQLite{% endif %}</span>{% endif %}<span class="status-dot"></span><span class="online-label">Фазои корӣ</span></div></header><main class="content"><div class="page-heading"><div><div class="eyebrow">KITOBYOR / {{ school.academic_year }}</div><h1>{{ title }}</h1>{% block subtitle %}{% endblock %}</div><div class="heading-actions">{% block actions %}{% endblock %}</div></div>{% for message in messages %}<div class="alert {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}<footer>KitobYor · Китобдорӣ бо тартиб ва осонӣ<span>Версияи корӣ 0.2</span></footer></main></div></body></html>
+{% load static %}<!doctype html>
+<html lang="tg">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>{{ title }} · KitobYor</title>
+<link rel="stylesheet" href="{% static 'app.css' %}">
+<script defer src="{% static 'app.js' %}">
+</script>
+</head>
+<body>
+<aside class="sidebar" id="sidebar">
+<a class="brand" href="{% url 'dashboard' %}">
+<span class="brand-icon">K</span>Kitob<span>Yor</span>
+</a>
+<div class="nav-caption">ФАЗОИ МАКТАБ</div>
+<nav aria-label="Менюи асосӣ">
+<a class="{% if active == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
+<span>◫</span>Пештахта</a>
+<a class="{% if active == 'students' %}active{% endif %}" href="{% url 'students' %}">
+<span>♙</span>Хонандагон</a>
+<a class="{% if active == 'inventory' %}active{% endif %}" href="{% url 'inventory' %}">
+<span>▤</span>Анбори китобҳо</a>
+<a class="{% if active == 'kits' %}active{% endif %}" href="{% url 'kits' %}">
+<span>▦</span>Маҷмӯаҳо <small class="nav-later">Ихтиёрӣ</small>
+</a>{% if can_library %}<a class="{% if active == 'issue' %}active{% endif %}" href="{% url 'issue' %}">
+<span>↗</span>Додани китоб</a>{% endif %}<a class="{% if active == 'invoices' %}active{% endif %}" href="{% url 'invoices' %}">
+<span>▧</span>Иҷораҳо</a>
+<a class="{% if active == 'reports' %}active{% endif %}" href="{% url 'reports' %}">
+<span>▥</span>Ҳисобот</a>
+</nav>
+<div class="sidebar-bottom">
+<span class="avatar">{{ request.user.username|first|upper }}</span>
+<div>
+<strong>{{ request.user.username }}</strong>
+<small>{{ membership.get_role_display }}</small>
+</div>
+<form action="{% url 'logout' %}" method="post">{% csrf_token %}<button class="icon-button" aria-label="Баромадан" title="Баромадан">↪</button>
+</form>
+</div>
+</aside>
+<div class="app-shell">
+<header class="topbar">
+<div class="school">
+<button class="mobile-toggle icon-button" aria-label="Кушодани меню" aria-controls="sidebar" aria-expanded="false">☰</button>
+<span class="school-icon">⌂</span>
+<div>
+<strong>{{ school.name }}</strong>
+<small>Китобхонаи мактаб</small>
+</div>
+</div>
+<div class="topbar-right">
+<span class="year-chip">{{ school.academic_year }}</span>{% if school.code == 'DEMO' %}<span class="badge amber">DEMO{% if demo_mode %} · SQLite{% endif %}</span>{% endif %}<span class="header-divider">
+</span>
+<span class="avatar header-avatar">{{ request.user.username|first|upper }}</span>
+<div class="header-user">
+<strong>{{ request.user.username }}</strong>
+<small>{{ membership.get_role_display }}</small>
+</div>
+</div>
+</header>
+<main class="content">
+<div class="page-heading">
+<div>
+<div class="eyebrow">KITOBYOR / {{ school.academic_year }}</div>
+<h1>{{ title }}</h1>{% block subtitle %}{% endblock %}</div>
+<div class="heading-actions">{% block actions %}{% endblock %}</div>
+</div>{% for message in messages %}<div class="alert {{ message.tags }}" role="status">{{ message }}</div>{% endfor %}{% block content %}{% endblock %}<footer>KitobYor · Китобдорӣ бо тартиб ва осонӣ<span>Версияи 1.0</span>
+</footer>
+</main>
+</div>
+</body>
+</html>

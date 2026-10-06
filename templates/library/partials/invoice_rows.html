@@ -1,1 +1,31 @@
-{% load kitobyor %}{% for inv in rows %}<tr><td><a class="text-link" href="{% url 'invoice_detail' inv.pk %}">{{ inv.number }}</a><small>{{ inv.created_at|date:"d.m.Y" }}</small></td><td><strong>{{ inv.loan.student.full_name }}</strong><small>{{ inv.loan.student.code }}</small></td><td>{{ inv.total|money }}</td><td class="positive">{{ inv.paid|money }}</td><td><strong>{{ inv.balance|money }}</strong></td><td>{% if inv.balance == 0 %}<span class="badge green">Пардохтшуда</span>{% elif inv.paid > 0 %}<span class="badge blue">Қисман пардохт</span>{% else %}<span class="badge amber">Пардохт нашуда</span>{% endif %}</td><td><a class="text-link" href="{% url 'invoice_detail' inv.pk %}">Кушодан →</a></td></tr>{% empty %}<tr><td colspan="7"><div class="empty"><span>▧</span><h3>Ҳисоб ёфт нашуд</h3><p>Пас аз додани китоб ҳисоби иҷора худкор пайдо мешавад.</p></div></td></tr>{% endfor %}
+{% load kitobyor %}{% for inv in rows %}{% with e=inv.loan.student|current_enrollment:inv.loan.academic_year %}<tr>
+<td>
+<a class="payment-ref" href="{% url 'invoice_detail' inv.pk %}">{{ inv.payment_number }}</a>
+<small>{{ inv.created_at|date:'d.m.Y' }}</small>
+</td>
+<td>
+<strong>{{ inv.loan.student.full_name }}</strong>
+<small>Синфи {{ e.grade }} · Гурӯҳи {{ e.group }}</small>
+</td>
+<td>
+<span class="book-count">{{ inv.book_count }} китоб</span>
+</td>
+<td>
+<strong>{{ inv.total|money }} с.</strong>
+</td>
+<td>{% if inv.balance == 0 %}<span class="badge green">✓ Пардохтшуда</span>{% else %}<span class="badge amber">Пардохтнашуда</span>{% endif %}</td>
+<td>
+<div class="row-actions">{% if inv.balance > 0 and can_finance %}<form method="post">{% csrf_token %}<input type="hidden" name="invoice_id" value="{{ inv.pk }}">
+<button class="button primary small">Пардохт шуд</button>
+</form>{% endif %}<a class="text-link" href="{% url 'invoice_detail' inv.pk %}">Ҷузъиёт →</a>
+</div>
+</td>
+</tr>{% endwith %}{% empty %}<tr>
+<td colspan="6">
+<div class="empty">
+<span>▧</span>
+<h3>Иҷора ёфт нашуд</h3>
+<p>Ҳангоми тасдиқи додани китоб иҷора ва рақами пардохт сохта мешаванд.</p>
+</div>
+</td>
+</tr>{% endfor %}

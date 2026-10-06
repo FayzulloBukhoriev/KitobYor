@@ -1,1 +1,123 @@
-{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Ҳолати китобхона дар як нигоҳ. Ҳамаи рақамҳо аз маълумоти сабтшуда.</p>{% endblock %}{% block actions %}{% if can_library %}<a class="button primary" href="{% url 'issue' %}">+ Додани китоб</a>{% endif %}{% endblock %}{% block content %}<div class="hero"><div><span class="hero-label">КИТОБДОРӢ ОСОНТАР МЕШАВАД</span><h2>Маҷмӯа як бор.<br>Барои ҳар хонанда — як тасдиқ.</h2><p>Маҷмӯаи 5–15 китоб худкор пешниҳод мешавад.<br>Шумо танҳо истисноҳоро санҷед.</p>{% if can_library %}<a class="button light" href="{% url 'issue' %}">Оғози додани китоб ↗</a>{% endif %}</div><div class="book-art" aria-hidden="true"><div class="book b1">ТОҶИКӢ<span>5</span></div><div class="book b2">МАТЕМАТИКА<span>5</span></div><div class="book b3">ТАБИАТ<span>5</span></div><div class="book-shadow"></div></div></div><div class="stats-grid"><article class="stat"><div><span>Хонандагони фаъол</span><span class="stat-icon blue">♙</span></div><strong>{{ stats.students }}</strong><small>Дар соли ҷорӣ</small></article><article class="stat"><div><span>Нусхаҳои дастрас</span><span class="stat-icon green">▤</span></div><strong>{{ stats.available }}</strong><small>Дар анбори мактаб</small></article><article class="stat"><div><span>Китобҳои додашуда</span><span class="stat-icon purple">↗</span></div><strong>{{ stats.issued }}</strong><small>Ҳоло дар дасти хонандагон</small></article><article class="stat"><div><span>Қарзи боқимонда</span><span class="stat-icon amber">▧</span></div><strong>{{ stats.debt|money }} <em>с.</em></strong><small>Ҳисобҳои соли ҷорӣ</small></article></div><div class="dashboard-columns"><section class="panel"><div class="panel-head"><div><h2>Ҳисобҳои охирин</h2><p>Иҷора ва ҳолати пардохт</p></div><a class="text-link" href="{% url 'invoices' %}">Ҳамаи ҳисобҳо →</a></div><div class="table-wrap"><table><thead><tr><th>Ҳисоб</th><th>Хонанда</th><th>Қарз · с.</th><th>Ҳолат</th></tr></thead><tbody>{% for inv in recent %}<tr><td><a class="text-link" href="{% url 'invoice_detail' inv.pk %}">{{ inv.number }}</a></td><td>{{ inv.loan.student.full_name }}</td><td>{{ inv.balance|money }}</td><td>{% if inv.balance == 0 %}<span class="badge green">Пардохтшуда</span>{% else %}<span class="badge amber">Қарз дорад</span>{% endif %}</td></tr>{% empty %}<tr><td colspan="4"><div class="empty"><h3>Аз маълумоти аввал оғоз кунед</h3><p>Хонанда, китоб ва маҷмӯаро илова кунед.</p></div></td></tr>{% endfor %}</tbody></table></div></section><section class="panel"><div class="panel-head"><div><h2>Диққат ба анбор</h2><p>Нашрҳои камтар аз 5 нусха</p></div><span class="badge amber">Бақия</span></div><div class="list">{% for ed in low %}<a class="list-row" href="{% url 'edition_detail' ed.pk %}"><span class="mini-book">▤</span><div><strong>{{ ed.book.title }}</strong><small>Синфи {{ ed.book.grade }} · {{ ed.year }}</small></div><span class="count {% if ed.stock.available == 0 %}danger{% endif %}">{{ ed.stock.available }}</span></a>{% empty %}<div class="empty compact"><p>Камбудии нусхаҳо сабт нашудааст.</p></div>{% endfor %}</div></section></div><div class="quick-grid">{% if can_library %}<a href="{% url 'student_import' %}" class="quick"><span>⇧</span><div><strong>Хонандагонро ворид кунед</strong><small>CSV, Excel ё рӯйхати гузошташуда</small></div><b>→</b></a><a href="{% url 'catalog_new' %}" class="quick"><span>+</span><div><strong>Китоби нав илова кунед</strong><small>Каталог, нашр ва анбор</small></div><b>→</b></a>{% endif %}<a href="{% url 'reports' %}" class="quick"><span>▥</span><div><strong>Ҳисоботро гиред</strong><small>Қарз, анбор ва иҷора</small></div><b>→</b></a></div>{% endblock %}
+{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Ҳолати китобхона дар як нигоҳ. Ҳамаи рақамҳо аз маълумоти сабтшуда.</p>{% endblock %}{% block actions %}{% if can_library %}<a class="button primary" href="{% url 'issue' %}">+ Додани китоб</a>{% endif %}{% endblock %}{% block content %}<div class="hero">
+<div>
+<span class="hero-label">КИТОБДОРӢ ОСОНТАР МЕШАВАД</span>
+<h2>Китобҳои мактаб.<br>Раванди содаи иҷора.</h2>
+<p>Китобҳоро интихоб кунед. Рақами пардохтро гиред.<br>Ҳамаи иҷораҳо — бо тартиб дар як ҷой.</p>{% if can_library %}<a class="button light" href="{% url 'issue' %}">Оғози додани китоб ↗</a>{% endif %}</div>
+<div class="hero-photo" aria-hidden="true">
+</div>
+</div>
+<div class="stats-grid">
+<article class="stat">
+<div>
+<span>Хонандагони фаъол</span>
+<span class="stat-icon blue">♙</span>
+</div>
+<strong>{{ stats.students }}</strong>
+<small>Дар соли ҷорӣ</small>
+</article>
+<article class="stat">
+<div>
+<span>Нусхаҳои дастрас</span>
+<span class="stat-icon green">▤</span>
+</div>
+<strong>{{ stats.available }}</strong>
+<small>Дар анбори мактаб</small>
+</article>
+<article class="stat">
+<div>
+<span>Китобҳои додашуда</span>
+<span class="stat-icon purple">↗</span>
+</div>
+<strong>{{ stats.issued }}</strong>
+<small>Ҳоло дар дасти хонандагон</small>
+</article>
+<article class="stat">
+<div>
+<span>Пардохтнашуда</span>
+<span class="stat-icon amber">▧</span>
+</div>
+<strong>{{ stats.unpaid_count }}</strong>
+<small>Иҷораҳои интизори пардохт</small>
+</article>
+</div>
+<div class="dashboard-columns">
+<section class="panel">
+<div class="panel-head">
+<div>
+<h2>Иҷораҳои охирин</h2>
+<p>Иҷора ва ҳолати пардохт</p>
+</div>
+<a class="text-link" href="{% url 'invoices' %}">Ҳамаи иҷораҳо →</a>
+</div>
+<div class="table-wrap">
+<table>
+<thead>
+<tr>
+<th>Рақами пардохт</th>
+<th>Хонанда</th>
+<th>Маблағ · с.</th>
+<th>Ҳолат</th>
+</tr>
+</thead>
+<tbody>{% for inv in recent %}<tr>
+<td>
+<a class="text-link" href="{% url 'invoice_detail' inv.pk %}">{{ inv.payment_number }}</a>
+</td>
+<td>{{ inv.loan.student.full_name }}</td>
+<td>{{ inv.total|money }}</td>
+<td>{% if inv.balance == 0 %}<span class="badge green">Пардохтшуда</span>{% else %}<span class="badge amber">Пардохтнашуда</span>{% endif %}</td>
+</tr>{% empty %}<tr>
+<td colspan="4">
+<div class="empty">
+<h3>Аз маълумоти аввал оғоз кунед</h3>
+<p>Хонанда ва китобҳоро ба анбор илова кунед.</p>
+</div>
+</td>
+</tr>{% endfor %}</tbody>
+</table>
+</div>
+</section>
+<section class="panel">
+<div class="panel-head">
+<div>
+<h2>Диққат ба анбор</h2>
+<p>Нашрҳои камтар аз 5 нусха</p>
+</div>
+<span class="badge amber">Бақия</span>
+</div>
+<div class="list">{% for ed in low %}<a class="list-row" href="{% url 'edition_detail' ed.pk %}">
+<span class="mini-book">▤</span>
+<div>
+<strong>{{ ed.book.title }}</strong>
+<small>Синфи {{ ed.book.grade }} · {{ ed.year }}</small>
+</div>
+<span class="count {% if ed.stock.available == 0 %}danger{% endif %}">{{ ed.stock.available }}</span>
+</a>{% empty %}<div class="empty compact">
+<p>Камбудии нусхаҳо сабт нашудааст.</p>
+</div>{% endfor %}</div>
+</section>
+</div>
+<div class="quick-grid">{% if can_library %}<a href="{% url 'student_import' %}" class="quick">
+<span>⇧</span>
+<div>
+<strong>Хонандагонро ворид кунед</strong>
+<small>CSV, Excel ё рӯйхати гузошташуда</small>
+</div>
+<b>→</b>
+</a>
+<a href="{% url 'catalog_new' %}" class="quick">
+<span>+</span>
+<div>
+<strong>Китоби нав илова кунед</strong>
+<small>Каталог, нашр ва анбор</small>
+</div>
+<b>→</b>
+</a>{% endif %}<a href="{% url 'reports' %}" class="quick">
+<span>▥</span>
+<div>
+<strong>Ҳисоботро гиред</strong>
+<small>Иҷора, пардохт ва анбор</small>
+</div>
+<b>→</b>
+</a>
+</div>{% endblock %}
