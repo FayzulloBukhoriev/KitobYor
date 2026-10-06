@@ -233,3 +233,14 @@ def close_lines(*,user,school,loan_id,lines):
     audit(school,user,'loan.closed',loan.pk,','.join(map(str,closed)))
     # Invoice balance never changes on a return. Refunds are a separate future workflow.
     return loan
+
+@transaction.atomic
+def update_student(*,user,school,student_id,code,full_name,address,grade,group,language):
+    authorize(user,school,['admin','librarian']);lock_school(school)
+    student=find(Student.objects.filter(school=school),student_id)
+    student.code,student.full_name,student.address=code,full_name,address
+    student.full_clean();student.save()
+    en=find(Enrollment.objects.filter(student=student,academic_year=school.academic_year),enrollment(student,school).pk)
+    en.grade,en.group,en.language=grade,group,language;en.full_clean();en.save()
+    audit(school,user,'student.updated',student.pk)
+    return student
