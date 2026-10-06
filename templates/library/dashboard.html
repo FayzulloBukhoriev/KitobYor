@@ -1,8 +1,8 @@
-{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Ҳолати китобхона дар як нигоҳ. Ҳамаи рақамҳо аз маълумоти сабтшуда.</p>{% endblock %}{% block actions %}{% if can_library %}<a class="button primary" href="{% url 'issue' %}">+ Додани китоб</a>{% endif %}{% endblock %}{% block content %}<div class="hero">
+{% extends 'library/base.html' %}{% load kitobyor %}{% block subtitle %}<p>Ҳолати китобхона дар як нигоҳ. Ҳамаи рақамҳо аз маълумоти сабтшуда.</p>{% endblock %}{% block actions %}{% if can_library %}<a class="button primary" href="{% url 'issue' %}">{% icon 'plus' %} Додани китоб</a>{% endif %}{% endblock %}{% block content %}<div class="hero">
 <div>
 <span class="hero-label">КИТОБДОРӢ ОСОНТАР МЕШАВАД</span>
 <h2>Китобҳои мактаб.<br>Раванди содаи иҷора.</h2>
-<p>Китобҳоро интихоб кунед. Рақами пардохтро гиред.<br>Ҳамаи иҷораҳо — бо тартиб дар як ҷой.</p>{% if can_library %}<a class="button light" href="{% url 'issue' %}">Оғози додани китоб ↗</a>{% endif %}</div>
+<p>Китобҳоро интихоб кунед. Рақами пардохтро гиред.<br> Ҳамаи иҷораҳо — бо тартиб дар як ҷой.</p>{% if can_library %}<a class="button light" href="{% url 'issue' %}">Оғози додани китоб ↗</a>{% endif %}</div>
 <div class="hero-photo" aria-hidden="true">
 </div>
 </div>
@@ -10,7 +10,7 @@
 <article class="stat">
 <div>
 <span>Хонандагони фаъол</span>
-<span class="stat-icon blue">♙</span>
+<span class="stat-icon blue">{% icon 'users' %}</span>
 </div>
 <strong>{{ stats.students }}</strong>
 <small>Дар соли ҷорӣ</small>
@@ -18,7 +18,7 @@
 <article class="stat">
 <div>
 <span>Нусхаҳои дастрас</span>
-<span class="stat-icon green">▤</span>
+<span class="stat-icon green">{% icon 'book' %}</span>
 </div>
 <strong>{{ stats.available }}</strong>
 <small>Дар анбори мактаб</small>
@@ -26,7 +26,7 @@
 <article class="stat">
 <div>
 <span>Китобҳои додашуда</span>
-<span class="stat-icon purple">↗</span>
+<span class="stat-icon purple">{% icon 'issue' %}</span>
 </div>
 <strong>{{ stats.issued }}</strong>
 <small>Ҳоло дар дасти хонандагон</small>
@@ -34,7 +34,7 @@
 <article class="stat">
 <div>
 <span>Пардохтнашуда</span>
-<span class="stat-icon amber">▧</span>
+<span class="stat-icon amber">{% icon 'invoice' %}</span>
 </div>
 <strong>{{ stats.unpaid_count }}</strong>
 <small>Иҷораҳои интизори пардохт</small>
@@ -86,7 +86,7 @@
 <span class="badge amber">Бақия</span>
 </div>
 <div class="list">{% for ed in low %}<a class="list-row" href="{% url 'edition_detail' ed.pk %}">
-<span class="mini-book">▤</span>
+<span class="mini-book">{% icon 'book' %}</span>
 <div>
 <strong>{{ ed.book.title }}</strong>
 <small>Синфи {{ ed.book.grade }} · {{ ed.year }}</small>
@@ -98,7 +98,7 @@
 </section>
 </div>
 <div class="quick-grid">{% if can_library %}<a href="{% url 'student_import' %}" class="quick">
-<span>⇧</span>
+<span>{% icon 'users' %}</span>
 <div>
 <strong>Хонандагонро ворид кунед</strong>
 <small>CSV, Excel ё рӯйхати гузошташуда</small>
@@ -113,7 +113,7 @@
 </div>
 <b>→</b>
 </a>{% endif %}<a href="{% url 'reports' %}" class="quick">
-<span>▥</span>
+<span>{% icon 'chart' %}</span>
 <div>
 <strong>Ҳисоботро гиред</strong>
 <small>Иҷора, пардохт ва анбор</small>

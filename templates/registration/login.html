@@ -1,31 +1,3 @@
-{% load static %}<!doctype html>
-<html lang="tg">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Вуруд · KitobYor</title>
-<link rel="stylesheet" href="{% static 'app.css' %}">
-</head>
-<body class="login-page">
-<section class="login-story">
-<a class="brand" href="/">
-<span class="brand-icon">K</span>Kitob<span>Yor</span>
-</a>
-<h1>Дониш аз китоб.<br>Осонии кор аз KitobYor.</h1>
-<p>Аз анбор то иҷора ва пардохт — ҳамаи кори китобдори мактаб дар як ҷой.</p>
-<div class="education-tag">
-<span>🇹🇯</span> Барои китобхонаҳои мактабҳои Тоҷикистон</div>
-</section>
-<section class="login-form-side">
-<main class="login-card">
-<div class="login-kicker">ХУШ ОМАДЕД БА KITOBYOR</div>
-<h1>Ворид шудан</h1>
-<p>Фазои мактаби худро кушоед ва корро оғоз кунед.</p>
-<form method="post">{% csrf_token %}{{ form.non_field_errors }}<label for="id_username">Номи корбар</label>{{ form.username }}{{ form.username.errors }}<label for="id_password">Рамз</label>{{ form.password }}{{ form.password.errors }}<input type="hidden" name="next" value="{{ next }}">
-<button class="button primary" type="submit">Ворид шудан →</button>
-</form>
-<small>Ҳисобро маъмури мактаб медиҳад. Бақайдгирии оммавӣ нест.</small>
-</main>
-</section>
-</body>
-</html>
+{% load static kitobyor %}<!doctype html><html lang="tg"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#142b3c"><title>Ворид шудан · KitobYor</title><link rel="preload" href="{% static 'fonts/NotoSans-Variable.woff2' %}" as="font" type="font/woff2" crossorigin><link rel="stylesheet" href="{% static 'app.css' %}"></head>
+<body class="login-page"><section class="login-story"><a class="brand" href="{% url 'login' %}"><span class="brand-icon">{% icon 'book' %}</span><span>Kitob<span class="brand-accent">Yor</span></span></a><div class="login-story-content"><span class="story-kicker">БАРОИ КИТОБХОНАҲОИ МАКТАБ</span><h1>Китоб ба хонанда.<br>Осонии кор<br>ба китобдор.</h1><p>Хонандагон, китобҳо ва иҷораҳо —<br>дар як фазои равшану фаҳмо.</p><div class="story-features"><span>{% icon 'check' %} Додани китоб бо як интихоб</span><span>{% icon 'check' %} Ҳисобу пардохт бо тартиб</span></div></div><div class="story-footer"><span class="story-line"></span>Дониш аз китоб оғоз мешавад.</div></section>
+<section class="login-form-side"><div class="login-card"><div class="login-mark">{% icon 'book' %}</div><span class="eyebrow">ХУШ ОМАДЕД БА KITOBYOR</span><h1>Ворид шудан</h1><p>Барои оғоз ҳисоби мактаби худро ворид кунед.</p><form method="post">{% csrf_token %}{{ form.non_field_errors }}<div class="field"><label for="id_username">Номи корбар</label>{{ form.username }}{{ form.username.errors }}</div><div class="field"><label for="id_password">Рамз</label>{{ form.password }}{{ form.password.errors }}</div><input type="hidden" name="next" value="{{ next }}"><button class="button primary full" type="submit">Ворид шудан {% icon 'arrow' %}</button></form><div class="login-help">{% icon 'shield' %}<span>Ҳисобро маъмури мактаб медиҳад.<br>Агар рамзро фаромӯш кардед, ба маъмур муроҷиат кунед.</span></div></div><small class="login-copyright">KitobYor · Китобхонаи рақамии мактаб</small></section></body></html>

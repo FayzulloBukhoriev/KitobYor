@@ -13,7 +13,7 @@
 </span>
 <span class="tab-note">Синфи {{ preview.enrollment.grade }}</span>
 </div>
-<form method="post" id="catalog-issue-form">{% csrf_token %}<input type="hidden" name="student_id" value="{{ student.pk }}">
+<noscript><div class="alert warning">Барои интихоби китобҳо JavaScript-ро фаъол кунед.</div></noscript><form method="post" id="catalog-issue-form">{% csrf_token %}<input type="hidden" name="student_id" value="{{ student.pk }}">
 <input type="hidden" name="token" value="{{ token }}">
 <input type="hidden" name="expected_total" id="expected-total" value="0.00">
 <section class="panel">
@@ -37,7 +37,7 @@
 </tr>
 </thead>
 <tbody>{% for row in preview.items %}<tr class="catalog-row">
-<td>{% if row.suggested and not row.already_held %}<input type="checkbox" class="book-check" data-choice="edition-{{ row.book_id }}" aria-label="Додани {{ row.title }}">{% else %}<input type="checkbox" disabled aria-label="{{ row.title }} дастрас нест">{% endif %}</td>
+<td>{% if row.suggested and not row.already_held %}<input type="checkbox" class="book-check" {% if row.selected %}checked{% endif %} data-choice="edition-{{ row.book_id }}" aria-label="Додани {{ row.title }}">{% else %}<input type="checkbox" disabled aria-label="{{ row.title }} дастрас нест">{% endif %}</td>
 <td>
 <strong>{{ row.title }}</strong>{% if row.already_held %}<small class="positive">Аллакай гирифтааст</small>{% elif not row.suggested %}<small class="error-text">Дар анбор нест ё нарх ворид нашудааст</small>{% endif %}</td>
 <td>{% if row.suggested and not row.already_held %}<select id="edition-{{ row.book_id }}" name="editions" class="catalog-edition" aria-label="Нашри {{ row.title }}" disabled>{% for c in row.choices %}<option value="{{ c.edition_id }}" data-fee="{{ c.fee|default:'0.00' }}" data-available="{{ c.available }}" {% if row.suggested.edition_id == c.edition_id %}selected{% endif %} {% if not c.enabled %}disabled{% endif %}>{{ c.year }} · {{ c.fee|default:'—' }} сомонӣ{% if not c.enabled %} · дастрас нест{% endif %}</option>{% endfor %}</select>{% else %}—{% endif %}</td>
@@ -70,7 +70,7 @@
 </div>
 <button class="button primary" id="confirm-issue" disabled>Тасдиқ ва сохтани рақами пардохт →</button>
 </section>
-<p class="hint">Пас аз тасдиқ иҷора сабт мешавад ва барои волидайн пешнамоиши SMS омода мегардад.</p>
+<p class="hint">Пас аз тасдиқ иҷора сабт мешавад ва барои волидайн паёми SMS омода мегардад.</p>
 </form>{% else %}<section class="panel">{% include 'library/partials/student_filters.html' %}<div class="table-wrap">
 <table>
 <thead>

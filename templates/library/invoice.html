@@ -55,9 +55,9 @@
 <h2>Паём ба волидайн</h2>
 <p>{{ notification.destination|default:'Телефони волидайн сабт нашудааст' }}</p>
 </div>
-<span class="badge blue">Пешнамоиш</span>
+<span class="badge {{ notification.status|sms_tone }}">{{ notification.get_status_display|default:"Пешнамоиш" }}</span>
 </div>{% if notification %}<div class="sms-bubble" id="sms-body">{{ notification.body }}</div>
-<button class="button ghost small" type="button" data-copy="sms-body">Нусха кардани матн</button>{% else %}<p>Барои ин иҷораи пешина паём ҳанӯз омода нашудааст.</p>{% endif %}<p class="hint">SMS фиристода нашудааст. Баъди пайвасти провайдер фиристодан фаъол мешавад.</p>
+<button class="button ghost small" type="button" data-copy="sms-body">Нусха кардани матн</button>{% else %}<p>Барои ин иҷораи пешина паём ҳанӯз омода нашудааст.</p>{% endif %}{% if notification.status == 'submitted' %}<p class="hint">Ҳамаи қисмҳо ба оператор супорида шуданд. Расидан ба телефон ҳанӯз тасдиқ нашудааст.</p>{% elif notification.status == 'preview' or notification.status == 'missing_phone' %}<p class="hint">SMS фиристода нашудааст. Барои фиристодан модеми GSM бо SIM-корт лозим аст.</p>{% else %}<p class="hint">{{ notification.last_error|default:'Ҳолати навбатро дар бахши Паёмҳо бинед.' }}</p>{% endif %}<a class="text-link" href="{% url 'sms_messages' %}">Ҳамаи паёмҳо →</a>
 </section>
 <section class="panel padded">
 <h2>Таърихи пардохт</h2>{% for p in payments %}<div class="payment-row">
