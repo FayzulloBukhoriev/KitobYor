@@ -67,3 +67,5 @@ Domain errors: `{"code":"stock_changed","detail":"..."}`. 400 маълумоти
 ## Барои frontend
 
 Як origin барои UI ва API интихоб шудааст: CORS ва JWT ҳоло лозим нестанд. Пардохт ё дода шудани китобро аз рӯи танҳо UI-state ҳисоб накунед; натиҷаи серверро қабул кунед. Агар ҷавоби confirm гум шавад, payload ва token-ро бетағйир retry кунед. 409 → пешнамоиши нав → тасдиқи корбар → token-и нав.
+
+UI-и корӣ дар /students/, /inventory/, /kits/, /issue/, /invoices/, /returns/ ва /reports/ аст. API-и JSON нигоҳ дошта шудааст; корбари оддӣ аз templates истифода мекунад. Импорт ҳоло тавассути UI аст.

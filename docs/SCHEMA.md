@@ -45,7 +45,7 @@ erDiagram
 | Payment | invoice, school, amount > 0; token unique; school + receipt unique |
 | StockMovement | edition, delta_available, delta_damaged, kind, note, actor/time |
 | AuditEvent | school, actor, action, object_id, detail, time |
-| ImportBatch | school, token, file_hash, state; танҳо схема, API-и импорт ҳанӯз нест |
+| ImportBatch | school, token, file_hash, state; UI import preview/commit бо token ва revalidation |
 | LoginAttempt | key hash unique, failures, window_start |
 
 LoanLine маҳдудиятҳои unique-и шартӣ дорад: хонанда наметавонад ҳамон KitItem ё Edition-ро ду бор бо ҳолати `issued` нигоҳ дорад. Китоби баргардонда иҷораи нав дошта метавонад. Ҳолати issued бояд closed_at холӣ дошта бошад; ҳолати баста сана мехоҳад.

@@ -26,9 +26,11 @@
 - Ҳисоби таърихӣ ҳангоми иваз шудани тариф ё синф дигар намешавад.
 - Амали ноком ҳеҷ Loan, Invoice ё ҳаракати қисман намемонад.
 
-## Марҳилаи навбатӣ: ҳанӯз татбиқ нашудааст
+## Талаботи васеъ ва ҳолати нав
 
-1. **Импорти оммавӣ**: CSV/Excel ва paste. Сутунҳо: code, full_name, grade, group, address, language. Хатогии сатр ва такрорҳоро пеш аз сабт нишон додан; интихоб кардани create/update; тасдиқи explicit; token + file_hash; audit. Як batch-и хурд atomic, файлҳои калон ба қисмҳо. ImportBatch модели тайёр дорад, аммо parser/API ҳоло нест.
+Версияи 0.2 UI, import create-only, чоп ва CSV-ро татбиқ кардааст. Ҳолати дақиқ дар docs/PROGRESS.md. Рӯйхати зер талаботи васеъ аст; қисмҳои нопурра mapping/update, rollover, банк ва production gate мебошанд.
+
+1. **Импорти оммавӣ**: CSV/Excel ва paste. Сутунҳо: code, full_name, grade, group, address, language. Хатогии сатр ва такрорҳоро пеш аз сабт нишон додан; интихоб кардани create/update; тасдиқи explicit; token + file_hash; audit. Як batch-и хурд atomic, файлҳои калон ба қисмҳо. Parser ва UI-и preview/commit дар importing.py ва ui.py омодаанд; API-и алоҳидаи импорт ва update ҳанӯз нестанд.
 2. **Формҳои пурраи интерфейс**: ҷадвали анбор, хонанда, маҷмӯа, ҷараёни додан бо пешнамоиш; payment, return; loading/empty/error states, keyboard access ва истифода дар планшет.
 3. **Омода кардани синф**: маҷмӯа барои синф пешниҳод шавад, вале додани китоб танҳо барои хонандагони ҳозиршуда тасдиқ гардад. Bulk preparation ва actual issuance омехта нашаванд.
 4. **Гузариши сол**: Enrollment-и нав ва маҷмӯа/тарифҳои сол; санҷиши қарз ва китобҳои барнагашта. Маълумоти кӯҳна overwrite нашавад.
